@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, maximum-scale=2.0">
+    <title>408违禁物品清点</title>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f7fa; padding: 16px; }
+        .container { max-width: 600px; margin: 0 auto; background: #fff; padding: 20px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        h2 { text-align: center; margin-bottom: 16px; color: #2c3e50; font-size: 22px; }
+        .meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
+        .meta label { font-weight: 600; color: #555; margin-right: 4px; }
+        input[type="date"], select { padding: 8px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; background: #fff; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+        th, td { padding: 10px 8px; text-align: center; border-bottom: 1px solid #eee; font-size: 15px; }
+        th { background: #f0f3f7; font-weight: 600; color: #333; }
+        td input { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 8px; font-size: 15px; text-align: center; }
+        .signature-row td { padding-top: 12px; }
+        .btn-group { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 16px; }
+        button { padding: 12px 20px; border: none; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; transition: 0.2s; }
+        .btn-add { background: #e0e7ff; color: #4f46e5; flex: 1; }
+        .btn-del { background: #fee2e2; color: #dc2626; flex: 1; }
+        .btn-export { background: #2563eb; color: white; width: 100%; margin-top: 8px; }
+        button:active { transform: scale(0.97); opacity: 0.9; }
+        .notice { margin-top: 12px; color: #888; font-size: 13px; text-align: center; }
+        .reset-link { display: block; text-align: center; margin-top: 16px; color: #94a3b8; font-size: 13px; text-decoration: underline; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>📋 408 违禁物品清点</h2>
+
+        <div class="meta">
+            <div>
+                <label for="datePicker">日期：</label>
+                <input type="date" id="datePicker">
+            </div>
+            <div>
+                <label for="shiftSelect">时段：</label>
+                <select id="shiftSelect">
+                    <option value="白天">白天</option>
+                    <option value="晚上">晚上</option>
+                </select>
+            </div>
+        </div>
+
+        <table id="itemTable">
+            <thead>
+                <tr>
+                    <th style="width:60%;">物品名称</th>
+                    <th style="width:40%;">数量</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+        </table>
+
+        <div class="btn-group">
+            <button class="btn-add" id="addItemBtn">➕ 添加物品</button>
+            <button class="btn-del" id="delItemBtn">🗑️ 删除最后一项</button>
+        </div>
+
+        <div style="margin-top: 16px;">
+            <label style="font-weight:600; color:#555; display:block; margin-bottom:6px;">✍️ 检查人签名：</label>
+            <input type="text" id="signatureInput" placeholder="请在此签名" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; font-size:16px;">
+        </div>
+
+        <button class="btn-export" id="exportBtn">📥 导出 Excel 文件</button>
+        <div class="notice">文件名格式：清点记录_日期_时段.xlsx</div>
+        <div class="reset-link" id="resetLink">🔄 恢复默认物品清单</div>
+    </div>
+
+    <script>
+        // ========== 默认物品清单（仅第一次或重置时使用） ==========
+        const DEFAULT_ITEMS = [
+            "剪刀",
+            "应急灯",
+            "打火机",
+            "刀具",
+            "绳索",
+            "尖锐工具"
+        ];
+
+        const STORAGE_KEY = 'checklist_items';  // localStorage 存储键
+
+        // ========== 全局状态 ==========
+        let items = [];
+
+        // ========== 本地存储操作 ==========
+        function loadItems() {
+            const stored = localStorage.getItem(STORAGE_KEY);
+            if (stored) {
+                try {
+                    const parsed = JSON.parse(stored);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        return parsed;
+                    }
+                } catch (e) {
+                    console.warn('物品清单数据损坏，将使用默认清单');
+                }
+            }
+            // 不存在或无效则使用默认
+            return [...DEFAULT_ITEMS];
+        }
+
+        function saveItems() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+        }
+
+        // 重置为默认清单
+        function resetItems() {
+            if (confirm('确认恢复为默认物品清单吗？你自定义的物品将丢失。')) {
+                items = [...DEFAULT_ITEMS];
+                saveItems();
+                renderTable();
+            }
+        }
+
+        // ========== 初始化日期和时段 ==========
+        const datePicker = document.getElementById('datePicker');
+        const shiftSelect = document.getElementById('shiftSelect');
+        const today = new Date().toISOString().slice(0, 10);
+        datePicker.value = today;
+
+        // ========== 表格渲染 ==========
+        function renderTable() {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+            items.forEach((item, index) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>
+                        <input type="text" class="item-name" value="${escapeHtml(item)}" data-index="${index}" placeholder="物品名称">
+                    </td>
+                    <td>
+                        <input type="text" class="item-qty" inputmode="numeric" pattern="[0-9]*" data-index="${index}" placeholder="数量">
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            // 绑定名称修改事件 -> 自动保存
+            document.querySelectorAll('.item-name').forEach(input => {
+                input.addEventListener('input', function() {
+                    const idx = parseInt(this.dataset.index);
+                    items[idx] = this.value.trim();
+                    saveItems();  // 每次输入都保存，确保不丢
+                });
+            });
+        }
+
+        function escapeHtml(text) {
+            return String(text).replace(/[&<>"]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                if (m === '"') return '&quot;';
+                return m;
+            });
+        }
+
+        // ========== 物品增删（均自动保存） ==========
+        document.getElementById('addItemBtn').addEventListener('click', function() {
+            const newName = prompt('请输入新物品名称：');
+            if (newName && newName.trim() !== '') {
+                items.push(newName.trim());
+                saveItems();
+                renderTable();
+            }
+        });
+
+        document.getElementById('delItemBtn').addEventListener('click', function() {
+            if (items.length <= 1) {
+                alert('至少保留一个物品！');
+                return;
+            }
+            if (confirm('确认删除最后一个物品吗？')) {
+                items.pop();
+                saveItems();
+                renderTable();
+            }
+        });
+
+        document.getElementById('resetLink').addEventListener('click', resetItems);
+
+        // ========== 导出 Excel ==========
+        document.getElementById('exportBtn').addEventListener('click', function() {
+            const date = datePicker.value;
+            const shift = shiftSelect.value;
+            const signature = document.getElementById('signatureInput').value.trim();
+
+            if (!date) { alert('请选择日期'); return; }
+            if (!signature) { alert('请签名后再导出'); return; }
+
+            const rows = [];
+            rows.push(['日期', '时段', '物品名称', '数量', '签名']);
+
+            const nameInputs = document.querySelectorAll('.item-name');
+            const qtyInputs = document.querySelectorAll('.item-qty');
+
+            for (let i = 0; i < nameInputs.length; i++) {
+                const name = nameInputs[i].value.trim();
+                const qty = qtyInputs[i].value.trim();
+                if (name === '') continue;
+                rows.push([date, shift, name, qty || '', signature]);
+            }
+
+            if (rows.length === 1) {
+                rows.push([date, shift, '', '', signature]);
+            }
+
+            const ws = XLSX.utils.aoa_to_sheet(rows);
+            ws['!cols'] = [
+                { wch: 12 },
+                { wch: 8 },
+                { wch: 20 },
+                { wch: 10 },
+                { wch: 15 }
+            ];
+
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, '清点记录');
+
+            const filename = `清点记录_${date}_${shift}.xlsx`;
+            XLSX.writeFile(wb, filename);
+            alert(`文件 "${filename}" 已生成并下载。`);
+        });
+
+        // ========== 启动 ==========
+        function init() {
+            items = loadItems();
+            renderTable();
+        }
+
+        init();
+    </script>
+</body>
+</html>
