@@ -13,19 +13,23 @@
         .meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
         .meta label { font-weight: 600; color: #555; margin-right: 4px; }
         input[type="date"], select { padding: 8px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; background: #fff; }
-        table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
-        th, td { padding: 10px 8px; text-align: center; border-bottom: 1px solid #eee; font-size: 15px; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
+        th, td { padding: 8px 6px; text-align: center; border-bottom: 1px solid #eee; font-size: 15px; }
         th { background: #f0f3f7; font-weight: 600; color: #333; }
         td input { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 8px; font-size: 15px; text-align: center; }
-        .signature-row td { padding-top: 12px; }
-        .btn-group { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 16px; }
-        button { padding: 12px 20px; border: none; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; transition: 0.2s; }
-        .btn-add { background: #e0e7ff; color: #4f46e5; flex: 1; }
-        .btn-del { background: #fee2e2; color: #dc2626; flex: 1; }
-        .btn-export { background: #2563eb; color: white; width: 100%; margin-top: 8px; }
+        .btn-row { display: flex; justify-content: center; margin-bottom: 12px; }
+        .btn-edit { padding: 10px 20px; border: 2px solid #4f46e5; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; transition: 0.2s; background: #fff; color: #4f46e5; }
+        .btn-edit.active { background: #4f46e5; color: #fff; }
+        .btn-export { background: #2563eb; color: white; width: 100%; margin-top: 8px; padding: 12px 20px; border: none; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; transition: 0.2s; }
         button:active { transform: scale(0.97); opacity: 0.9; }
+        .del-btn { background: #dc2626; color: white; border: none; border-radius: 50%; width: 28px; height: 28px; font-size: 16px; line-height: 28px; cursor: pointer; padding: 0; margin-right: 4px; }
+        .add-row { text-align: center; padding: 10px; }
+        .add-row-btn { background: #10b981; color: white; border: none; border-radius: 8px; padding: 8px 20px; font-size: 14px; font-weight: 600; cursor: pointer; }
         .notice { margin-top: 12px; color: #888; font-size: 13px; text-align: center; }
         .reset-link { display: block; text-align: center; margin-top: 16px; color: #94a3b8; font-size: 13px; text-decoration: underline; cursor: pointer; }
+        .signature-wrap { margin-top: 16px; }
+        .signature-wrap label { font-weight:600; color:#555; display:block; margin-bottom:6px; }
+        .signature-wrap input { width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; font-size:16px; }
     </style>
 </head>
 <body>
@@ -46,24 +50,26 @@
             </div>
         </div>
 
+        <!-- 修改按钮 -->
+        <div class="btn-row">
+            <button class="btn-edit" id="editToggleBtn">✏️ 修改物品清单</button>
+        </div>
+
         <table id="itemTable">
             <thead>
                 <tr>
-                    <th style="width:60%;">物品名称</th>
-                    <th style="width:40%;">数量</th>
+                    <th style="width:15%;" id="delColHeader" hidden>删除</th>
+                    <th style="width:50%;">物品名称</th>
+                    <th style="width:35%;">数量</th>
                 </tr>
             </thead>
             <tbody id="tableBody"></tbody>
+            <tfoot id="tableFoot"></tfoot>
         </table>
 
-        <div class="btn-group">
-            <button class="btn-add" id="addItemBtn">➕ 添加物品</button>
-            <button class="btn-del" id="delItemBtn">🗑️ 删除最后一项</button>
-        </div>
-
-        <div style="margin-top: 16px;">
-            <label style="font-weight:600; color:#555; display:block; margin-bottom:6px;">✍️ 检查人签名：</label>
-            <input type="text" id="signatureInput" placeholder="请在此签名" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; font-size:16px;">
+        <div class="signature-wrap">
+            <label for="signatureInput">✍️ 检查人签名：</label>
+            <input type="text" id="signatureInput" placeholder="请在此签名">
         </div>
 
         <button class="btn-export" id="exportBtn">📥 导出 Excel 文件</button>
@@ -72,7 +78,7 @@
     </div>
 
     <script>
-        // ========== 默认物品清单（仅第一次或重置时使用） ==========
+        // ========== 默认物品清单 ==========
         const DEFAULT_ITEMS = [
             "剪刀",
             "应急灯",
@@ -82,25 +88,21 @@
             "尖锐工具"
         ];
 
-        const STORAGE_KEY = 'checklist_items';  // localStorage 存储键
+        const STORAGE_KEY = 'checklist_items_v2';
 
         // ========== 全局状态 ==========
         let items = [];
+        let editMode = false;  // 是否在编辑模式
 
-        // ========== 本地存储操作 ==========
+        // ========== 本地存储 ==========
         function loadItems() {
             const stored = localStorage.getItem(STORAGE_KEY);
             if (stored) {
                 try {
                     const parsed = JSON.parse(stored);
-                    if (Array.isArray(parsed) && parsed.length > 0) {
-                        return parsed;
-                    }
-                } catch (e) {
-                    console.warn('物品清单数据损坏，将使用默认清单');
-                }
+                    if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+                } catch (e) {}
             }
-            // 不存在或无效则使用默认
             return [...DEFAULT_ITEMS];
         }
 
@@ -108,7 +110,6 @@
             localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
         }
 
-        // 重置为默认清单
         function resetItems() {
             if (confirm('确认恢复为默认物品清单吗？你自定义的物品将丢失。')) {
                 items = [...DEFAULT_ITEMS];
@@ -117,71 +118,118 @@
             }
         }
 
-        // ========== 初始化日期和时段 ==========
+        // ========== 日期/时段 ==========
         const datePicker = document.getElementById('datePicker');
         const shiftSelect = document.getElementById('shiftSelect');
         const today = new Date().toISOString().slice(0, 10);
         datePicker.value = today;
 
-        // ========== 表格渲染 ==========
+        // ========== 渲染表格 ==========
         function renderTable() {
             const tbody = document.getElementById('tableBody');
+            const tfoot = document.getElementById('tableFoot');
+            const delColHeader = document.getElementById('delColHeader');
+
+            // 表头删除列显隐
+            delColHeader.hidden = !editMode;
+
             tbody.innerHTML = '';
             items.forEach((item, index) => {
                 const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td>
-                        <input type="text" class="item-name" value="${escapeHtml(item)}" data-index="${index}" placeholder="物品名称">
-                    </td>
-                    <td>
-                        <input type="text" class="item-qty" inputmode="numeric" pattern="[0-9]*" data-index="${index}" placeholder="数量">
-                    </td>
-                `;
+
+                // 删除按钮列
+                const tdDel = document.createElement('td');
+                if (editMode) {
+                    const delBtn = document.createElement('button');
+                    delBtn.className = 'del-btn';
+                    delBtn.textContent = '✕';
+                    delBtn.title = '删除此项';
+                    delBtn.addEventListener('click', function() {
+                        if (confirm(`确认删除物品「${items[index]}」吗？此操作不可恢复。`)) {
+                            if (items.length <= 1) {
+                                alert('至少保留一个物品！');
+                                return;
+                            }
+                            items.splice(index, 1);
+                            saveItems();
+                            renderTable();
+                        }
+                    });
+                    tdDel.appendChild(delBtn);
+                }
+                tr.appendChild(tdDel);
+
+                // 物品名称
+                const tdName = document.createElement('td');
+                const nameInput = document.createElement('input');
+                nameInput.type = 'text';
+                nameInput.className = 'item-name';
+                nameInput.value = item;
+                nameInput.placeholder = '物品名称';
+                nameInput.addEventListener('input', function() {
+                    items[index] = this.value.trim();
+                    saveItems();
+                });
+                tdName.appendChild(nameInput);
+                tr.appendChild(tdName);
+
+                // 数量
+                const tdQty = document.createElement('td');
+                const qtyInput = document.createElement('input');
+                qtyInput.type = 'text';
+                qtyInput.className = 'item-qty';
+                qtyInput.inputMode = 'numeric';
+                qtyInput.pattern = '[0-9]*';
+                qtyInput.placeholder = '数量';
+                tdQty.appendChild(qtyInput);
+                tr.appendChild(tdQty);
+
                 tbody.appendChild(tr);
             });
 
-            // 绑定名称修改事件 -> 自动保存
-            document.querySelectorAll('.item-name').forEach(input => {
-                input.addEventListener('input', function() {
-                    const idx = parseInt(this.dataset.index);
-                    items[idx] = this.value.trim();
-                    saveItems();  // 每次输入都保存，确保不丢
+            // 底部添加行
+            tfoot.innerHTML = '';
+            if (editMode) {
+                const tr = document.createElement('tr');
+                const tdAdd = document.createElement('td');
+                tdAdd.colSpan = 3;
+                tdAdd.className = 'add-row';
+                const addBtn = document.createElement('button');
+                addBtn.className = 'add-row-btn';
+                addBtn.textContent = '+ 添加物品';
+                addBtn.addEventListener('click', function() {
+                    const newName = prompt('请输入新物品名称：');
+                    if (newName && newName.trim() !== '') {
+                        if (confirm(`确认添加物品「${newName.trim()}」吗？`)) {
+                            items.push(newName.trim());
+                            saveItems();
+                            renderTable();
+                        }
+                    }
                 });
-            });
+                tdAdd.appendChild(addBtn);
+                tr.appendChild(tdAdd);
+                tfoot.appendChild(tr);
+            }
+
+            // 更新修改按钮状态
+            const editBtn = document.getElementById('editToggleBtn');
+            if (editMode) {
+                editBtn.textContent = '✅ 完成修改';
+                editBtn.classList.add('active');
+            } else {
+                editBtn.textContent = '✏️ 修改物品清单';
+                editBtn.classList.remove('active');
+            }
         }
 
-        function escapeHtml(text) {
-            return String(text).replace(/[&<>"]/g, function(m) {
-                if (m === '&') return '&amp;';
-                if (m === '<') return '&lt;';
-                if (m === '>') return '&gt;';
-                if (m === '"') return '&quot;';
-                return m;
-            });
-        }
-
-        // ========== 物品增删（均自动保存） ==========
-        document.getElementById('addItemBtn').addEventListener('click', function() {
-            const newName = prompt('请输入新物品名称：');
-            if (newName && newName.trim() !== '') {
-                items.push(newName.trim());
-                saveItems();
-                renderTable();
-            }
+        // ========== 切换编辑模式 ==========
+        document.getElementById('editToggleBtn').addEventListener('click', function() {
+            editMode = !editMode;
+            renderTable();
         });
 
-        document.getElementById('delItemBtn').addEventListener('click', function() {
-            if (items.length <= 1) {
-                alert('至少保留一个物品！');
-                return;
-            }
-            if (confirm('确认删除最后一个物品吗？')) {
-                items.pop();
-                saveItems();
-                renderTable();
-            }
-        });
-
+        // ========== 重置 ==========
         document.getElementById('resetLink').addEventListener('click', resetItems);
 
         // ========== 导出 Excel ==========
@@ -230,6 +278,7 @@
         // ========== 启动 ==========
         function init() {
             items = loadItems();
+            editMode = false;
             renderTable();
         }
 
