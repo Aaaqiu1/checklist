@@ -27,6 +27,7 @@
         .add-row-btn { background: #10b981; color: white; border: none; border-radius: 8px; padding: 8px 20px; font-size: 14px; font-weight: 600; cursor: pointer; }
         .notice { margin-top: 12px; color: #888; font-size: 13px; text-align: center; }
         .reset-link { display: block; text-align: center; margin-top: 16px; color: #94a3b8; font-size: 13px; text-decoration: underline; cursor: pointer; }
+        .watermark { text-align: center; color: #bbb; font-size: 12px; margin-top: 8px; user-select: none; }
         .signature-wrap { margin-top: 16px; }
         .signature-wrap label { font-weight:600; color:#555; display:block; margin-bottom:6px; }
         .signature-wrap input { width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; font-size:16px; }
@@ -69,6 +70,7 @@
         <button class="btn-export" id="exportBtn">📥 导出 Excel 文件</button>
         <div class="notice">文件名格式：清点记录_日期_时段.xlsx</div>
         <div class="reset-link" id="resetLink">🔄 恢复默认物品清单</div>
+        <div class="watermark">险胜彭于晏 创作</div>
     </div>
 
     <script>
@@ -133,7 +135,6 @@
             // ---- 表头 ----
             const headerRow = document.createElement('tr');
             if (editMode) {
-                // 编辑模式：删除 | 物品名称 | 数量
                 const thDel = document.createElement('th');
                 thDel.style.width = '15%';
                 thDel.textContent = '删除';
@@ -149,7 +150,6 @@
                 thQty.textContent = '数量';
                 headerRow.appendChild(thQty);
             } else {
-                // 非编辑模式：物品名称 | 数量
                 const thName = document.createElement('th');
                 thName.style.width = '60%';
                 thName.textContent = '物品名称';
@@ -167,7 +167,6 @@
                 const tr = document.createElement('tr');
 
                 if (editMode) {
-                    // 删除按钮
                     const tdDel = document.createElement('td');
                     const delBtn = document.createElement('button');
                     delBtn.className = 'del-btn';
@@ -220,7 +219,7 @@
             if (editMode) {
                 const tr = document.createElement('tr');
                 const tdAdd = document.createElement('td');
-                tdAdd.colSpan = 3; // 跨三列
+                tdAdd.colSpan = 3;
                 tdAdd.className = 'add-row';
                 const addBtn = document.createElement('button');
                 addBtn.className = 'add-row-btn';
