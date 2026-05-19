@@ -12,31 +12,46 @@
         h2 { text-align: center; margin-bottom: 16px; color: #2c3e50; font-size: 22px; }
         .meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
         .meta label { font-weight: 600; color: #555; margin-right: 4px; }
-        input[type="date"], select { padding: 8px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; background: #fff; }
+        input[type="date"], select, input[type="text"], input[type="password"] { padding: 8px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; background: #fff; }
         table { width: 100%; border-collapse: collapse; margin-bottom: 12px; table-layout: fixed; }
         th, td { padding: 8px 6px; text-align: center; border-bottom: 1px solid #eee; font-size: 15px; }
         th { background: #f0f3f7; font-weight: 600; color: #333; }
         td input { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 8px; font-size: 15px; text-align: center; }
-        .btn-row { display: flex; justify-content: center; margin-bottom: 12px; }
-        .btn-edit { padding: 10px 20px; border: 2px solid #4f46e5; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; transition: 0.2s; background: #fff; color: #4f46e5; }
+        .btn-row { display: flex; gap: 10px; justify-content: center; margin-bottom: 12px; flex-wrap: wrap; }
+        .btn-edit, .btn-history, .btn-settings { padding: 10px 20px; border: 2px solid #4f46e5; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; background: #fff; color: #4f46e5; }
         .btn-edit.active { background: #4f46e5; color: #fff; }
-        .btn-export { background: #2563eb; color: white; width: 100%; margin-top: 8px; padding: 12px 20px; border: none; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; transition: 0.2s; }
+        .btn-export { background: #2563eb; color: white; width: 100%; margin-top: 8px; padding: 12px 20px; border: none; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; }
         button:active { transform: scale(0.97); opacity: 0.9; }
-        .del-btn { background: #dc2626; color: white; border: none; border-radius: 50%; width: 28px; height: 28px; font-size: 16px; line-height: 28px; cursor: pointer; padding: 0; }
+        .del-btn { background: #dc2626; color: white; border: none; border-radius: 50%; width: 28px; height: 28px; font-size: 16px; line-height: 28px; cursor: pointer; }
         .add-row { text-align: center; padding: 10px; }
         .add-row-btn { background: #10b981; color: white; border: none; border-radius: 8px; padding: 8px 20px; font-size: 14px; font-weight: 600; cursor: pointer; }
         .notice { margin-top: 12px; color: #888; font-size: 13px; text-align: center; }
-        .reset-link { display: block; text-align: center; margin-top: 16px; color: #94a3b8; font-size: 13px; text-decoration: underline; cursor: pointer; }
-        .watermark { text-align: center; color: #bbb; font-size: 12px; margin-top: 8px; user-select: none; }
+        .reset-link { text-align: center; margin-top: 12px; color: #94a3b8; font-size: 13px; text-decoration: underline; cursor: pointer; display: block; }
+        .watermark { text-align: center; color: #bbb; font-size: 12px; margin-top: 8px; }
         .signature-wrap { margin-top: 16px; }
         .signature-wrap label { font-weight:600; color:#555; display:block; margin-bottom:6px; }
         .signature-wrap input { width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; font-size:16px; }
+        .browser-tip { display: none; background: #fff3cd; color: #856404; border: 1px solid #ffeeba; border-radius: 8px; padding: 10px; margin-bottom: 16px; text-align: center; }
+        .browser-tip.show { display: block; }
+        /* 设置面板 */
+        .settings-panel { background: #f8f9fa; border-radius: 12px; padding: 16px; margin-top: 20px; display: none; }
+        .settings-panel.show { display: block; }
+        .settings-panel label { font-weight:600; color:#333; display:block; margin-top:8px; }
+        .settings-panel input { width:100%; margin-top:4px; }
+        .btn-save { background: #2563eb; color: white; border: none; padding: 10px; border-radius: 8px; width: 100%; margin-top: 12px; font-size: 16px; cursor: pointer; }
+        .sync-status { text-align: center; margin-top: 8px; font-size: 13px; }
+        /* 历史记录弹窗 */
+        .modal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); z-index: 99; justify-content: center; align-items: center; }
+        .modal-content { background: white; border-radius: 16px; padding: 20px; max-width: 90%; max-height: 80%; overflow-y: auto; width: 500px; }
+        .modal-close { float: right; font-size: 24px; cursor: pointer; }
     </style>
 </head>
 <body>
     <div class="container">
         <h2>📋 408 违禁物品清点</h2>
-
+        <div class="browser-tip" id="browserTip">
+            ⚠️ 微信/QQ内无法下载，请点击右上角“在浏览器打开”
+        </div>
         <div class="meta">
             <div>
                 <label for="datePicker">日期：</label>
@@ -50,273 +65,456 @@
                 </select>
             </div>
         </div>
-
-        <!-- 修改按钮 -->
         <div class="btn-row">
             <button class="btn-edit" id="editToggleBtn">✏️ 修改物品清单</button>
+            <button class="btn-history" id="historyBtn">📂 查看历史记录</button>
         </div>
-
-        <table id="itemTable">
-            <thead></thead>
-            <tbody></tbody>
-            <tfoot></tfoot>
-        </table>
-
+        <table id="itemTable"><thead></thead><tbody></tbody><tfoot></tfoot></table>
         <div class="signature-wrap">
-            <label for="signatureInput">✍️ 检查人签名：</label>
+            <label>✍️ 检查人签名：</label>
             <input type="text" id="signatureInput" placeholder="请在此签名">
         </div>
-
-        <button class="btn-export" id="exportBtn">📥 导出 Excel 文件</button>
-        <div class="notice">文件名格式：清点记录_日期_时段.xlsx</div>
+        <button class="btn-export" id="exportBtn">📥 导出 Excel 并上传记录</button>
+        <div class="notice">文件名：清点记录_日期_时段.xlsx · 自动同步云端</div>
         <div class="reset-link" id="resetLink">🔄 恢复默认物品清单</div>
         <div class="watermark">险胜彭于晏 创作</div>
+
+        <!-- GitHub 设置区域 -->
+        <div style="text-align:center; margin-top:12px;">
+            <span class="reset-link" id="settingsToggle">⚙️ GitHub 同步设置</span>
+        </div>
+        <div class="settings-panel" id="settingsPanel">
+            <label>仓库所有者：</label>
+            <input type="text" id="repoOwner" placeholder="你的GitHub用户名">
+            <label>仓库名：</label>
+            <input type="text" id="repoName" placeholder="例如 checklist-data">
+            <label>Token：</label>
+            <input type="password" id="githubToken" placeholder="ghp_xxxx">
+            <button class="btn-save" id="saveSettingsBtn">💾 保存设置</button>
+            <div class="sync-status" id="syncStatus"></div>
+        </div>
+    </div>
+
+    <!-- 历史记录弹窗 -->
+    <div class="modal" id="historyModal">
+        <div class="modal-content">
+            <span class="modal-close" id="closeModal">&times;</span>
+            <h3>📂 清点历史记录</h3>
+            <div id="historyList">加载中...</div>
+        </div>
     </div>
 
     <script>
         // ========== 默认物品清单 ==========
         const DEFAULT_ITEMS = [
-            "输液剪（1把）",
-            "药物剪（1把）",
-            "水果刀（1把）",
-            "剥皮刀（1把）",
-            "指甲钳（2个）",
-            "电动门钥匙（2个）",
-            "约束带（6条）",
-            "应急灯（1台）",
-            "压力球（4个）",
-            "铜砭刮痧板（7块）",
-            "耳穴探棒（4个）",
-            "小火龙罐（1个）",
-            "大火龙罐（1个）",
-            "砭石炙（1个）"
+            "输液剪（1把）","药物剪（1把）","水果刀（1把）","剥皮刀（1把）",
+            "指甲钳（2个）","电动门钥匙（2个）","约束带（6条）","应急灯（1台）",
+            "压力球（4个）","铜砭刮痧板（7块）","耳穴探棒（4个）",
+            "小火龙罐（1个）","大火龙罐（1个）","砭石炙（1个）"
         ];
+        const STORAGE_KEY_ITEMS = 'checklist_items_v2';
+        const STORAGE_KEY_GITHUB = 'checklist_github_config';
 
-        const STORAGE_KEY = 'checklist_items_v2';
-
-        // ========== 全局状态 ==========
         let items = [];
         let editMode = false;
 
-        // ========== 本地存储 ==========
-        function loadItems() {
-            const stored = localStorage.getItem(STORAGE_KEY);
+        // GitHub 配置
+        let ghConfig = {
+            owner: '',
+            repo: '',
+            token: ''
+        };
+
+        // ========== 环境检测 ==========
+        function isWechatOrQQ() {
+            const ua = navigator.userAgent.toLowerCase();
+            return ua.includes('micromessenger') || ua.includes('qq/') || ua.includes('mqqbrowser');
+        }
+        if (isWechatOrQQ()) document.getElementById('browserTip').classList.add('show');
+
+        // ========== 本地物品存储（作为备份） ==========
+        function loadLocalItems() {
+            const stored = localStorage.getItem(STORAGE_KEY_ITEMS);
             if (stored) {
-                try {
-                    const parsed = JSON.parse(stored);
-                    if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-                } catch (e) {}
+                try { const parsed = JSON.parse(stored); if (Array.isArray(parsed) && parsed.length) return parsed; } catch(e){}
             }
             return [...DEFAULT_ITEMS];
         }
-
-        function saveItems() {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+        function saveLocalItems() {
+            localStorage.setItem(STORAGE_KEY_ITEMS, JSON.stringify(items));
         }
 
-        function resetItems() {
-            if (confirm('确认恢复为默认物品清单吗？你自定义的物品将丢失。')) {
-                items = [...DEFAULT_ITEMS];
-                saveItems();
-                renderTable();
+        // ========== GitHub API 封装 ==========
+        function getApiBase() {
+            return `https://api.github.com/repos/${ghConfig.owner}/${ghConfig.repo}/contents`;
+        }
+        function getHeaders() {
+            return {
+                'Authorization': `token ${ghConfig.token}`,
+                'Accept': 'application/vnd.github.v3+json'
+            };
+        }
+
+        // 从 GitHub 获取文件内容（JSON）
+        async function fetchFromGitHub(path) {
+            const url = `${getApiBase()}/${path}`;
+            const resp = await fetch(url, { headers: getHeaders() });
+            if (!resp.ok) {
+                if (resp.status === 404) return null; // 文件不存在
+                throw new Error(`GitHub 读取失败: ${resp.status}`);
+            }
+            const data = await resp.json();
+            // 解码 base64 内容
+            const content = atob(data.content.replace(/\n/g, ''));
+            return JSON.parse(content);
+        }
+
+        // 上传/更新文件到 GitHub（需要 sha 时传 sha）
+        async function uploadToGitHub(path, content, sha = null) {
+            const url = `${getApiBase()}/${path}`;
+            const body = {
+                message: `Update ${path}`,
+                content: btoa(unescape(encodeURIComponent(JSON.stringify(content, null, 2)))),
+                branch: 'main' // 或 master，根据你的仓库默认分支修改
+            };
+            if (sha) body.sha = sha;
+            const resp = await fetch(url, {
+                method: 'PUT',
+                headers: getHeaders(),
+                body: JSON.stringify(body)
+            });
+            if (!resp.ok) {
+                const err = await resp.json();
+                throw new Error(`GitHub 上传失败: ${err.message}`);
+            }
+            return await resp.json();
+        }
+
+        // 获取文件 sha（用于更新）
+        async function getFileSha(path) {
+            const url = `${getApiBase()}/${path}`;
+            const resp = await fetch(url, { headers: getHeaders() });
+            if (resp.status === 404) return null;
+            if (!resp.ok) throw new Error(`获取文件信息失败: ${resp.status}`);
+            const data = await resp.json();
+            return data.sha;
+        }
+
+        // ========== 同步物品清单 ==========
+        async function syncItemsFromGitHub() {
+            if (!ghConfig.token || !ghConfig.owner || !ghConfig.repo) return;
+            try {
+                const cloudItems = await fetchFromGitHub('items.json');
+                if (cloudItems && Array.isArray(cloudItems)) {
+                    items = cloudItems;
+                    saveLocalItems();
+                    renderTable();
+                    setSyncStatus('✅ 物品清单已从云端加载');
+                }
+            } catch(e) {
+                setSyncStatus('⚠️ 云端加载失败，使用本地清单');
+                console.error(e);
             }
         }
 
-        // ========== 日期/时段 ==========
-        const datePicker = document.getElementById('datePicker');
-        const shiftSelect = document.getElementById('shiftSelect');
-        const today = new Date().toISOString().slice(0, 10);
-        datePicker.value = today;
+        async function uploadItemsToGitHub() {
+            if (!ghConfig.token || !ghConfig.owner || !ghConfig.repo) return;
+            try {
+                const sha = await getFileSha('items.json');
+                await uploadToGitHub('items.json', items, sha);
+                setSyncStatus('☁️ 物品清单已同步');
+            } catch(e) {
+                setSyncStatus('❌ 同步失败，请检查设置');
+                console.error(e);
+            }
+        }
 
-        // ========== 渲染表格（完全重建 thead、tbody、tfoot） ==========
+        // ========== 清点记录上传 ==========
+        async function uploadRecord(date, shift, rows) {
+            if (!ghConfig.token || !ghConfig.owner || !ghConfig.repo) return false;
+            try {
+                const path = `records/${date}/${shift}.json`;
+                // 获取已有的记录（如果存在则合并）
+                let existing = {};
+                const sha = await getFileSha(path);
+                if (sha) {
+                    const old = await fetchFromGitHub(path);
+                    if (old) existing = old;
+                }
+                // 构建记录对象
+                const record = {
+                    date: date,
+                    shift: shift,
+                    signature: document.getElementById('signatureInput').value.trim(),
+                    items: rows.slice(1).map(r => ({ name: r[2], qty: r[3] })),
+                    updatedAt: new Date().toISOString()
+                };
+                await uploadToGitHub(path, record, sha);
+                return true;
+            } catch(e) {
+                console.error('上传记录失败', e);
+                return false;
+            }
+        }
+
+        // ========== 历史记录获取 ==========
+        async function getHistoryList() {
+            if (!ghConfig.token || !ghConfig.owner || !ghConfig.repo) return [];
+            try {
+                const base = getApiBase();
+                // 获取 records 目录下的所有日期文件夹
+                const resp = await fetch(`${base}/records`, { headers: getHeaders() });
+                if (resp.status === 404) return [];
+                if (!resp.ok) throw new Error('获取目录失败');
+                const files = await resp.json();
+                // 过滤出目录（类型 dir）
+                const dirs = files.filter(f => f.type === 'dir').map(d => d.name);
+                return dirs.sort().reverse(); // 按日期倒序
+            } catch(e) {
+                console.error(e);
+                return [];
+            }
+        }
+
+        async function getRecord(date, shift) {
+            try {
+                return await fetchFromGitHub(`records/${date}/${shift}.json`);
+            } catch(e) {
+                return null;
+            }
+        }
+
+        // ========== UI 辅助 ==========
+        function setSyncStatus(msg) {
+            document.getElementById('syncStatus').textContent = msg;
+        }
+
+        // ========== 表格渲染（保持不变） ==========
         function renderTable() {
             const table = document.getElementById('itemTable');
             const thead = table.querySelector('thead');
             const tbody = table.querySelector('tbody');
             const tfoot = table.querySelector('tfoot');
+            thead.innerHTML = ''; tbody.innerHTML = ''; tfoot.innerHTML = '';
 
-            // 清空
-            thead.innerHTML = '';
-            tbody.innerHTML = '';
-            tfoot.innerHTML = '';
-
-            // ---- 表头 ----
             const headerRow = document.createElement('tr');
             if (editMode) {
-                const thDel = document.createElement('th');
-                thDel.style.width = '15%';
-                thDel.textContent = '删除';
-                headerRow.appendChild(thDel);
-
-                const thName = document.createElement('th');
-                thName.style.width = '50%';
-                thName.textContent = '物品名称';
-                headerRow.appendChild(thName);
-
-                const thQty = document.createElement('th');
-                thQty.style.width = '35%';
-                thQty.textContent = '数量';
-                headerRow.appendChild(thQty);
+                headerRow.innerHTML = `<th style="width:15%">删除</th><th style="width:50%">物品名称</th><th style="width:35%">数量</th>`;
             } else {
-                const thName = document.createElement('th');
-                thName.style.width = '60%';
-                thName.textContent = '物品名称';
-                headerRow.appendChild(thName);
-
-                const thQty = document.createElement('th');
-                thQty.style.width = '40%';
-                thQty.textContent = '数量';
-                headerRow.appendChild(thQty);
+                headerRow.innerHTML = `<th style="width:60%">物品名称</th><th style="width:40%">数量</th>`;
             }
             thead.appendChild(headerRow);
 
-            // ---- 表体 ----
             items.forEach((item, index) => {
                 const tr = document.createElement('tr');
-
                 if (editMode) {
                     const tdDel = document.createElement('td');
                     const delBtn = document.createElement('button');
-                    delBtn.className = 'del-btn';
-                    delBtn.textContent = '✕';
-                    delBtn.title = '删除此项';
-                    delBtn.addEventListener('click', function() {
-                        if (confirm(`确认删除物品「${items[index]}」吗？此操作不可恢复。`)) {
-                            if (items.length <= 1) {
-                                alert('至少保留一个物品！');
-                                return;
-                            }
+                    delBtn.className = 'del-btn'; delBtn.textContent = '✕';
+                    delBtn.onclick = () => {
+                        if (confirm(`删除「${items[index]}」？`)) {
+                            if (items.length <= 1) { alert('至少保留一个'); return; }
                             items.splice(index, 1);
-                            saveItems();
+                            saveLocalItems();
+                            uploadItemsToGitHub();
                             renderTable();
                         }
-                    });
+                    };
                     tdDel.appendChild(delBtn);
                     tr.appendChild(tdDel);
                 }
-
-                // 物品名称
                 const tdName = document.createElement('td');
                 const nameInput = document.createElement('input');
-                nameInput.type = 'text';
-                nameInput.className = 'item-name';
+                nameInput.type = 'text'; nameInput.className = 'item-name';
                 nameInput.value = item;
-                nameInput.placeholder = '物品名称';
-                nameInput.addEventListener('input', function() {
+                nameInput.oninput = function() {
                     items[index] = this.value.trim();
-                    saveItems();
-                });
+                    saveLocalItems();
+                };
+                nameInput.onchange = () => uploadItemsToGitHub(); // 修改完同步云端
                 tdName.appendChild(nameInput);
                 tr.appendChild(tdName);
 
-                // 数量
                 const tdQty = document.createElement('td');
                 const qtyInput = document.createElement('input');
-                qtyInput.type = 'text';
-                qtyInput.className = 'item-qty';
-                qtyInput.inputMode = 'numeric';
-                qtyInput.pattern = '[0-9]*';
-                qtyInput.placeholder = '数量';
+                qtyInput.type = 'text'; qtyInput.className = 'item-qty';
+                qtyInput.inputMode = 'numeric'; qtyInput.placeholder = '数量';
                 tdQty.appendChild(qtyInput);
                 tr.appendChild(tdQty);
-
                 tbody.appendChild(tr);
             });
 
-            // ---- 表尾（仅编辑模式有添加行） ----
             if (editMode) {
                 const tr = document.createElement('tr');
-                const tdAdd = document.createElement('td');
-                tdAdd.colSpan = 3;
+                const tdAdd = document.createElement('td'); tdAdd.colSpan = 3;
                 tdAdd.className = 'add-row';
                 const addBtn = document.createElement('button');
-                addBtn.className = 'add-row-btn';
-                addBtn.textContent = '+ 添加物品';
-                addBtn.addEventListener('click', function() {
-                    const newName = prompt('请输入新物品名称：');
-                    if (newName && newName.trim() !== '') {
-                        if (confirm(`确认添加物品「${newName.trim()}」吗？`)) {
-                            items.push(newName.trim());
-                            saveItems();
+                addBtn.className = 'add-row-btn'; addBtn.textContent = '+ 添加物品';
+                addBtn.onclick = () => {
+                    const name = prompt('新物品名称：');
+                    if (name && name.trim()) {
+                        if (confirm(`添加「${name.trim()}」？`)) {
+                            items.push(name.trim());
+                            saveLocalItems();
+                            uploadItemsToGitHub();
                             renderTable();
                         }
                     }
-                });
+                };
                 tdAdd.appendChild(addBtn);
                 tr.appendChild(tdAdd);
                 tfoot.appendChild(tr);
             }
 
-            // 更新修改按钮文字和样式
-            const editBtn = document.getElementById('editToggleBtn');
-            if (editMode) {
-                editBtn.textContent = '✅ 完成修改';
-                editBtn.classList.add('active');
-            } else {
-                editBtn.textContent = '✏️ 修改物品清单';
-                editBtn.classList.remove('active');
-            }
+            document.getElementById('editToggleBtn').textContent = editMode ? '✅ 完成修改' : '✏️ 修改物品清单';
+            document.getElementById('editToggleBtn').classList.toggle('active', editMode);
         }
 
-        // ========== 切换编辑模式 ==========
-        document.getElementById('editToggleBtn').addEventListener('click', function() {
-            editMode = !editMode;
-            renderTable();
-        });
-
-        // ========== 重置 ==========
-        document.getElementById('resetLink').addEventListener('click', resetItems);
-
-        // ========== 导出 Excel ==========
-        document.getElementById('exportBtn').addEventListener('click', function() {
-            const date = datePicker.value;
-            const shift = shiftSelect.value;
+        // ========== 导出并上传 ==========
+        document.getElementById('exportBtn').addEventListener('click', async function() {
+            if (isWechatOrQQ()) {
+                alert('请点击右上角“在浏览器中打开”后再导出');
+                return;
+            }
+            const date = document.getElementById('datePicker').value;
+            const shift = document.getElementById('shiftSelect').value;
             const signature = document.getElementById('signatureInput').value.trim();
-
             if (!date) { alert('请选择日期'); return; }
-            if (!signature) { alert('请签名后再导出'); return; }
+            if (!signature) { alert('请签名'); return; }
 
-            const rows = [];
-            rows.push(['日期', '时段', '物品名称', '数量', '签名']);
+            const rows = [['日期', '时段', '物品名称', '数量', '签名']];
+            document.querySelectorAll('.item-name').forEach((inp, i) => {
+                const name = inp.value.trim();
+                const qty = document.querySelectorAll('.item-qty')[i].value.trim();
+                if (name) rows.push([date, shift, name, qty || '', signature]);
+            });
 
-            const nameInputs = document.querySelectorAll('.item-name');
-            const qtyInputs = document.querySelectorAll('.item-qty');
-
-            for (let i = 0; i < nameInputs.length; i++) {
-                const name = nameInputs[i].value.trim();
-                const qty = qtyInputs[i].value.trim();
-                if (name === '') continue;
-                rows.push([date, shift, name, qty || '', signature]);
-            }
-
-            if (rows.length === 1) {
-                rows.push([date, shift, '', '', signature]);
-            }
-
+            // 导出 Excel
             const ws = XLSX.utils.aoa_to_sheet(rows);
-            ws['!cols'] = [
-                { wch: 12 },
-                { wch: 8 },
-                { wch: 20 },
-                { wch: 10 },
-                { wch: 15 }
-            ];
-
+            ws['!cols'] = [{wch:12},{wch:8},{wch:20},{wch:10},{wch:15}];
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, '清点记录');
-
             const filename = `清点记录_${date}_${shift}.xlsx`;
             XLSX.writeFile(wb, filename);
-            alert(`文件 "${filename}" 已生成并下载。`);
+
+            // 上传到 GitHub
+            if (ghConfig.token) {
+                const success = await uploadRecord(date, shift, rows);
+                if (success) {
+                    alert(`✅ 已导出并上传到云端\n文件：${filename}`);
+                } else {
+                    alert(`⚠️ 文件已下载，但云端上传失败，请检查设置`);
+                }
+            } else {
+                alert(`文件已下载：${filename}\n（未配置云端同步）`);
+            }
         });
 
-        // ========== 启动 ==========
-        function init() {
-            items = loadItems();
-            editMode = false;
-            renderTable();
+        // ========== 按钮事件 ==========
+        document.getElementById('editToggleBtn').onclick = () => { editMode = !editMode; renderTable(); };
+        document.getElementById('resetLink').onclick = () => {
+            if (confirm('恢复默认物品清单？自定义数据将丢失。')) {
+                items = [...DEFAULT_ITEMS];
+                saveLocalItems();
+                uploadItemsToGitHub();
+                renderTable();
+            }
+        };
+
+        // ========== 历史记录弹窗 ==========
+        const modal = document.getElementById('historyModal');
+        document.getElementById('historyBtn').onclick = async () => {
+            if (!ghConfig.token) { alert('请先配置 GitHub 同步'); return; }
+            modal.style.display = 'flex';
+            const listDiv = document.getElementById('historyList');
+            listDiv.innerHTML = '加载中...';
+            const dates = await getHistoryList();
+            if (dates.length === 0) {
+                listDiv.innerHTML = '暂无历史记录';
+                return;
+            }
+            let html = '<ul style="list-style:none; padding:0;">';
+            for (const date of dates) {
+                html += `<li style="margin:10px 0; padding:10px; background:#f8f9fa; border-radius:8px;">
+                    <strong>${date}</strong>
+                    <div style="margin-top:5px;">
+                        <button class="view-record" data-date="${date}" data-shift="白天">白天</button>
+                        <button class="view-record" data-date="${date}" data-shift="晚上">晚上</button>
+                    </div>
+                </li>`;
+            }
+            html += '</ul>';
+            listDiv.innerHTML = html;
+
+            // 绑定查看按钮
+            document.querySelectorAll('.view-record').forEach(btn => {
+                btn.onclick = async function() {
+                    const d = this.dataset.date;
+                    const s = this.dataset.shift;
+                    const record = await getRecord(d, s);
+                    if (record) {
+                        alert(`日期：${d} ${s}\n签名：${record.signature}\n物品：${record.items.map(i=>`${i.name}×${i.qty}`).join(', ')}`);
+                    } else {
+                        alert('记录不存在');
+                    }
+                };
+            });
+        };
+        document.getElementById('closeModal').onclick = () => modal.style.display = 'none';
+        window.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
+
+        // ========== GitHub 设置面板 ==========
+        function loadGhConfig() {
+            const saved = localStorage.getItem(STORAGE_KEY_GITHUB);
+            if (saved) {
+                try { ghConfig = JSON.parse(saved); } catch(e){}
+            }
+            document.getElementById('repoOwner').value = ghConfig.owner || '';
+            document.getElementById('repoName').value = ghConfig.repo || '';
+            document.getElementById('githubToken').value = ghConfig.token || '';
+        }
+        function saveGhConfig() {
+            ghConfig.owner = document.getElementById('repoOwner').value.trim();
+            ghConfig.repo = document.getElementById('repoName').value.trim();
+            ghConfig.token = document.getElementById('githubToken').value.trim();
+            localStorage.setItem(STORAGE_KEY_GITHUB, JSON.stringify(ghConfig));
         }
 
+        document.getElementById('settingsToggle').onclick = () => {
+            document.getElementById('settingsPanel').classList.toggle('show');
+        };
+        document.getElementById('saveSettingsBtn').onclick = async () => {
+            saveGhConfig();
+            setSyncStatus('正在测试连接...');
+            try {
+                // 简单测试：获取仓库信息
+                const resp = await fetch(`https://api.github.com/repos/${ghConfig.owner}/${ghConfig.repo}`, {
+                    headers: { 'Authorization': `token ${ghConfig.token}` }
+                });
+                if (resp.ok) {
+                    setSyncStatus('✅ 连接成功！');
+                    await syncItemsFromGitHub();
+                } else {
+                    setSyncStatus('❌ 连接失败，请检查信息');
+                }
+            } catch(e) {
+                setSyncStatus('❌ 网络错误');
+            }
+        };
+
+        // ========== 初始化 ==========
+        function init() {
+            loadGhConfig();
+            // 先加载本地清单
+            items = loadLocalItems();
+            renderTable();
+            // 自动尝试从云端同步（如果已配置）
+            if (ghConfig.token) {
+                syncItemsFromGitHub().then(() => renderTable());
+            }
+        }
+
+        document.getElementById('datePicker').value = new Date().toISOString().slice(0,10);
         init();
     </script>
 </body>
