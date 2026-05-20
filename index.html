@@ -29,7 +29,20 @@
         .del-btn { background: #dc2626; color: white; border: none; border-radius: 50%; width: 28px; height: 28px; font-size: 16px; line-height: 28px; cursor: pointer; }
         .add-row { text-align: center; padding: 10px; }
         .add-row-btn { background: #10b981; color: white; border: none; border-radius: 8px; padding: 8px 20px; font-size: 14px; font-weight: 600; cursor: pointer; }
-        .notice { margin-top: 8px; color: #888; font-size: 13px; text-align: center; }
+        .notice {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+    color: #888;
+    font-size: 13px;
+}
+.notice span {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
         .reset-link { text-align: center; margin-top: 12px; color: #94a3b8; font-size: 13px; text-decoration: underline; cursor: pointer; display: block; }
         .watermark { text-align: center; color: #bbb; font-size: 12px; margin-top: 8px; }
         .signature-wrap { margin-top: 16px; }
@@ -113,7 +126,7 @@
         <button class="btn-upload" id="uploadRecordBtn">☁️ 上传记录到云端</button>
         <button class="btn-download-all" id="downloadAllBtn">📦 下载云端全部记录 (zip)</button>
 
-                                    <span><span class="legend-red"></span> 未上传</span>
+                            <span><span class="legend-red"></span> 未上传</span>
                             <span><span class="legend-half"></span> 部分上传</span>
                             <span><span class="legend-green"></span> 已上传</span>
         <div class="reset-link" id="resetLink">🔄 恢复默认物品清单</div>
