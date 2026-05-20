@@ -4,8 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, maximum-scale=2.0">
     <title>408违禁物品清点</title>
-    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js">
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js">
+    </script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f7fa; padding: 16px; }
@@ -29,20 +31,8 @@
         .del-btn { background: #dc2626; color: white; border: none; border-radius: 50%; width: 28px; height: 28px; font-size: 16px; line-height: 28px; cursor: pointer; }
         .add-row { text-align: center; padding: 10px; }
         .add-row-btn { background: #10b981; color: white; border: none; border-radius: 8px; padding: 8px 20px; font-size: 14px; font-weight: 600; cursor: pointer; }
-        .notice {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 8px;
-    margin-top: 8px;
-    color: #888;
-    font-size: 13px;
-}
-.notice span {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-}
+        .notice { display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 8px; color: #888; font-size: 13px; }
+        .notice span { display: inline-flex; align-items: center; gap: 4px; }
         .reset-link { text-align: center; margin-top: 12px; color: #94a3b8; font-size: 13px; text-decoration: underline; cursor: pointer; display: block; }
         .watermark { text-align: center; color: #bbb; font-size: 12px; margin-top: 8px; }
         .signature-wrap { margin-top: 16px; }
@@ -73,11 +63,11 @@
         .calendar-date.future { color: #aaa; }
         .calendar-date.empty { visibility: hidden; }
         .calendar-date.selected { outline: 2px solid #2563eb; }
-        .legend-row { display: flex; justify-content: center; gap: 16px; margin-top: 8px; font-size: 12px; color: #666; }
-        .legend-row span { display: inline-flex; align-items: center; gap: 4px; }
-        .legend-red { width: 12px; height: 12px; background: #ef4444; border-radius: 3px; display: inline-block; }
-        .legend-green { width: 12px; height: 12px; background: #22c55e; border-radius: 3px; display: inline-block; }
-        .legend-half { width: 12px; height: 12px; background: linear-gradient(to right, #22c55e 50%, #ef4444 50%); border-radius: 3px; display: inline-block; }
+        .legend-row { display: flex; justify-content: center; align-items: center; gap: 12px; margin-top: 8px; font-size: 12px; color: #666; width: 100%; text-align: center; }
+        .legend-row span { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+        .legend-red { width: 12px; height: 12px; background: #ef4444; border-radius: 3px; display: inline-block; flex-shrink: 0; }
+        .legend-green { width: 12px; height: 12px; background: #22c55e; border-radius: 3px; display: inline-block; flex-shrink: 0; }
+        .legend-half { width: 12px; height: 12px; background: linear-gradient(to right, #22c55e 50%, #ef4444 50%); border-radius: 3px; display: inline-block; flex-shrink: 0; }
     </style>
 </head>
 <body>
@@ -117,11 +107,6 @@
         <div class="btn-row">
             <button class="btn-edit" id="editToggleBtn">✏️ 修改物品清单</button>
         </div>
-            <div class="notice">
-            <span><span class="legend-red"></span> 未上传</span>
-            <span><span class="legend-half"></span> 部分上传</span>
-            <span><span class="legend-green"></span> 已上传</span>
-            </div>
         <table id="itemTable"><thead></thead><tbody></tbody><tfoot></tfoot></table>
         <div class="signature-wrap">
             <label>✍️ 检查人签名：</label>
@@ -130,6 +115,11 @@
         <button class="btn-export" id="exportExcelBtn">📥 导出 Excel (本地下载)</button>
         <button class="btn-upload" id="uploadRecordBtn">☁️ 上传记录到云端</button>
         <button class="btn-download-all" id="downloadAllBtn">📦 下载云端全部记录 (zip)</button>
+        <div class="notice">
+            <span><span class="legend-red"></span> 未上传</span>
+            <span><span class="legend-half"></span> 部分上传</span>
+            <span><span class="legend-green"></span> 已上传</span>
+        </div>
         <div class="reset-link" id="resetLink">🔄 恢复默认物品清单</div>
         <div class="watermark">创作者：险胜彭于晏</div>
         <div style="text-align:center; margin-top:12px;">
@@ -181,6 +171,25 @@
             localStorage.setItem(STORAGE_KEY_ITEMS, JSON.stringify(items));
         }
 
+        // ========== 安全 Base64 编码/解码（支持中文） ==========
+        function safeBase64Encode(str) {
+            const encoder = new TextEncoder();
+            const bytes = encoder.encode(str);
+            let binary = '';
+            bytes.forEach(byte => binary += String.fromCharCode(byte));
+            return btoa(binary);
+        }
+
+        function safeBase64Decode(base64) {
+            const binary = atob(base64);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) {
+                bytes[i] = binary.charCodeAt(i);
+            }
+            const decoder = new TextDecoder();
+            return decoder.decode(bytes);
+        }
+
         // ========== GitHub API ==========
         function getApiBase() {
             return `https://api.github.com/repos/${ghConfig.owner}/${ghConfig.repo}/contents`;
@@ -200,13 +209,13 @@
             return resp;
         }
 
-        // ========== 物品清单同步（修复404处理） ==========
+        // ========== 物品清单同步（已修复404+中文乱码） ==========
         async function syncItemsFromGitHub() {
             if (!ghConfig.token || !ghConfig.owner || !ghConfig.repo) return;
             try {
                 const resp = await githubRequest(`${getApiBase()}/items.json`);
                 const data = await resp.json();
-                const content = JSON.parse(atob(data.content.replace(/\n/g, '')));
+                const content = JSON.parse(safeBase64Decode(data.content.replace(/\n/g, '')));
                 if (Array.isArray(content)) {
                     items = content;
                     saveLocalItems();
@@ -214,9 +223,7 @@
                     setSyncStatus('✅ 物品清单已从云端加载');
                 }
             } catch(e) {
-                // 如果是404，说明云端尚无清单文件，属于正常情况，不提示错误
                 if (e.message.includes('404')) {
-                    // 云端无文件，保持本地清单，不覆盖状态
                     console.log('云端暂无 items.json，使用本地清单');
                 } else {
                     setSyncStatus('⚠️ 云端加载失败，使用本地清单');
@@ -237,7 +244,7 @@
                 }
                 const body = {
                     message: 'Update items.json',
-                    content: btoa(unescape(encodeURIComponent(JSON.stringify(items, null, 2)))),
+                    content: safeBase64Encode(JSON.stringify(items, null, 2)),
                     branch: 'main'
                 };
                 if (sha) body.sha = sha;
@@ -503,7 +510,7 @@
                 });
                 if (resp.ok) {
                     setSyncStatus('✅ 连接成功！');
-                    await syncItemsFromGitHub(); // 现在不会覆盖状态，404只是静默
+                    await syncItemsFromGitHub();
                     await refreshCalendarStatus();
                 } else {
                     setSyncStatus('❌ 连接失败，请检查信息');
