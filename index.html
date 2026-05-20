@@ -4,10 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, maximum-scale=2.0">
     <title>408违禁物品清点</title>
-    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js">
-    </script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js">
-    </script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f7fa; padding: 16px; }
@@ -23,11 +21,12 @@
         .btn-row { display: flex; gap: 8px; justify-content: center; margin-bottom: 12px; flex-wrap: wrap; }
         .btn-edit, .btn-settings { padding: 8px 14px; border: 2px solid #4f46e5; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; background: #fff; color: #4f46e5; }
         .btn-edit.active { background: #4f46e5; color: #fff; }
-        .btn-export, .btn-upload, .btn-download-all { padding: 12px 16px; border: none; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 8px; width: 100%; }
+        .btn-export, .btn-upload, .btn-download-all { padding: 12px 16px; border: none; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 8px; width: 100%; position: relative; overflow: hidden; }
         .btn-export { background: #2563eb; color: white; }
         .btn-upload { background: #10b981; color: white; }
         .btn-download-all { background: #f59e0b; color: white; }
         button:active { transform: scale(0.97); opacity: 0.9; }
+        button:disabled { opacity: 0.7; cursor: not-allowed; }
         .del-btn { background: #dc2626; color: white; border: none; border-radius: 50%; width: 28px; height: 28px; font-size: 16px; line-height: 28px; cursor: pointer; }
         .add-row { text-align: center; padding: 10px; }
         .add-row-btn { background: #10b981; color: white; border: none; border-radius: 8px; padding: 8px 20px; font-size: 14px; font-weight: 600; cursor: pointer; }
@@ -46,6 +45,10 @@
         .settings-panel input { width:100%; margin-top:4px; }
         .btn-save { background: #2563eb; color: white; border: none; padding: 10px; border-radius: 8px; width: 100%; margin-top: 12px; font-size: 16px; cursor: pointer; }
         .sync-status { text-align: center; margin-top: 8px; font-size: 13px; }
+
+        /* 进度条样式 */
+        .progress-bar-container { width: 100%; height: 6px; background: #e2e8f0; border-radius: 3px; margin-top: 8px; overflow: hidden; display: none; }
+        .progress-bar-fill { height: 100%; background: #2563eb; width: 0%; transition: width 0.3s; }
 
         /* 自定义日历样式 */
         .date-picker-wrapper { position: relative; display: inline-block; }
@@ -120,6 +123,10 @@
         <button class="btn-upload" id="uploadRecordBtn">☁️ 上传记录到云端</button>
         <button class="btn-download-all" id="downloadAllBtn">📦 下载云端全部记录 (zip)</button>
         <button class="btn-export" id="exportExcelBtn">📥 导出 Excel (本地下载)</button>
+        <!-- 进度条 -->
+        <div class="progress-bar-container" id="progressContainer">
+            <div class="progress-bar-fill" id="progressFill"></div>
+        </div>
         <div class="reset-link" id="resetLink">🔄 恢复默认物品清单</div>
         <div class="watermark">创作者：险胜彭于晏</div>
         <div style="text-align:center; margin-top:12px;">
@@ -171,7 +178,7 @@
             localStorage.setItem(STORAGE_KEY_ITEMS, JSON.stringify(items));
         }
 
-        // ========== 安全 Base64 编码/解码（支持中文） ==========
+        // ========== 安全 Base64 编码/解码 ==========
         function safeBase64Encode(str) {
             const encoder = new TextEncoder();
             const bytes = encoder.encode(str);
@@ -209,7 +216,7 @@
             return resp;
         }
 
-        // ========== 物品清单同步（已修复404+中文乱码） ==========
+        // ========== 物品清单同步 ==========
         async function syncItemsFromGitHub() {
             if (!ghConfig.token || !ghConfig.owner || !ghConfig.repo) return;
             try {
@@ -367,7 +374,16 @@
             URL.revokeObjectURL(url);
         }
 
-        // ========== 路径生成（records/年/月份数据/文件） ==========
+        // ========== 进度条控制 ==========
+        function showProgress(show) {
+            document.getElementById('progressContainer').style.display = show ? 'block' : 'none';
+        }
+        function setProgress(percent) {
+            const fill = document.getElementById('progressFill');
+            fill.style.width = Math.min(100, Math.max(0, percent)) + '%';
+        }
+
+        // ========== 路径生成 ==========
         function buildRecordPath(date, shift) {
             const [year, month, day] = date.split('-');
             const monthStr = parseInt(month, 10) + '月份数据';
@@ -401,16 +417,29 @@
             await githubRequest(`${getApiBase()}/${path}`, { method: 'PUT', body: JSON.stringify(body) });
         }
 
-        // ========== 按钮事件 ==========
-        document.getElementById('exportExcelBtn').addEventListener('click', () => {
+        // ========== 按钮事件：导出 Excel（带反馈） ==========
+        document.getElementById('exportExcelBtn').addEventListener('click', async () => {
             if (isWechatOrQQ()) { alert('请在系统浏览器中打开'); return; }
             const date = document.getElementById('dateDisplay').textContent;
             const shift = document.getElementById('shiftSelect').value;
             const signature = document.getElementById('signatureInput').value.trim();
             if (!date || !signature) { alert('请填写日期和签名'); return; }
-            downloadBlob(generateExcelBlob(), `清点记录_${date}_${shift}.xlsx`);
+
+            const btn = document.getElementById('exportExcelBtn');
+            btn.disabled = true;
+            btn.textContent = '生成中...';
+            // 模拟短暂延迟让用户看到反馈
+            await new Promise(resolve => setTimeout(resolve, 100));
+            const blob = generateExcelBlob();
+            downloadBlob(blob, `清点记录_${date}_${shift}.xlsx`);
+            btn.textContent = '✅ 下载已开始';
+            setTimeout(() => {
+                btn.textContent = '📥 导出 Excel (本地下载)';
+                btn.disabled = false;
+            }, 1500);
         });
 
+        // ========== 上传记录 ==========
         document.getElementById('uploadRecordBtn').addEventListener('click', async () => {
             if (!ghConfig.token) { alert('请先配置 GitHub 同步'); return; }
             const date = document.getElementById('dateDisplay').textContent;
@@ -434,9 +463,15 @@
             }
         });
 
-        // ========== 下载全部 zip ==========
+        // ========== 下载全部记录（带进度条） ==========
         async function downloadAllRecordsAsZip() {
             if (!ghConfig.token) { alert('请先配置 GitHub 同步'); return; }
+            const btn = document.getElementById('downloadAllBtn');
+            btn.disabled = true;
+            showProgress(true);
+            setProgress(0);
+            btn.textContent = '打包中... 0%';
+
             const filesToDownload = [];
             async function walkDir(basePath) {
                 try {
@@ -455,17 +490,55 @@
                     }
                 } catch(e) {}
             }
-            await walkDir('records');
-            if (filesToDownload.length === 0) { alert('云端没有 Excel 记录'); return; }
 
-            const zip = new JSZip();
-            await Promise.all(filesToDownload.map(async file => {
-                const resp = await fetch(file.url);
-                zip.file(file.path, await resp.blob());
-            }));
-            const content = await zip.generateAsync({ type: 'blob' });
-            downloadBlob(content, '所有清点数据.zip');
-            alert('✅ 所有清点数据已下载');
+            try {
+                await walkDir('records');
+                if (filesToDownload.length === 0) {
+                    alert('云端没有 Excel 记录');
+                    btn.disabled = false;
+                    btn.textContent = '📦 下载云端全部记录 (zip)';
+                    showProgress(false);
+                    return;
+                }
+
+                // 更新进度：收集完成占20%
+                setProgress(20);
+                btn.textContent = '打包中... 20%';
+
+                const zip = new JSZip();
+                // 下载文件并加入zip，同时更新进度（下载占30%～70%）
+                for (let i = 0; i < filesToDownload.length; i++) {
+                    const file = filesToDownload[i];
+                    const resp = await fetch(file.url);
+                    const blob = await resp.blob();
+                    zip.file(file.path, blob);
+                    const percent = 20 + Math.round((i + 1) / filesToDownload.length * 50);
+                    setProgress(percent);
+                    btn.textContent = `打包中... ${percent}%`;
+                }
+
+                // 生成zip（显示70%～100%）
+                const content = await zip.generateAsync({ type: 'blob' }, (metadata) => {
+                    const percent = 70 + Math.round(metadata.percent * 0.3);
+                    setProgress(percent);
+                    btn.textContent = `打包中... ${percent}%`;
+                });
+
+                setProgress(100);
+                btn.textContent = '打包完成，正在下载...';
+                downloadBlob(content, '所有清点数据.zip');
+                btn.textContent = '✅ 下载已开始';
+            } catch(e) {
+                alert('下载失败: ' + e.message);
+                btn.textContent = '📦 下载云端全部记录 (zip)';
+            } finally {
+                setTimeout(() => {
+                    btn.disabled = false;
+                    btn.textContent = '📦 下载云端全部记录 (zip)';
+                    showProgress(false);
+                    setProgress(0);
+                }, 2000);
+            }
         }
 
         document.getElementById('downloadAllBtn').addEventListener('click', () => {
