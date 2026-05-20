@@ -19,12 +19,12 @@
         th { background: #f0f3f7; font-weight: 600; color: #333; }
         td input { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 8px; font-size: 15px; text-align: center; }
         .btn-row { display: flex; gap: 8px; justify-content: center; margin-bottom: 12px; flex-wrap: wrap; }
-        .btn-edit, .btn-history, .btn-settings { padding: 8px 14px; border: 2px solid #4f46e5; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; background: #fff; color: #4f46e5; }
+        .btn-edit, .btn-settings { padding: 8px 14px; border: 2px solid #4f46e5; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; background: #fff; color: #4f46e5; }
         .btn-edit.active { background: #4f46e5; color: #fff; }
-        .btn-export, .btn-upload, .btn-download-all { padding: 12px 16px; border: none; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 8px; }
-        .btn-export { background: #2563eb; color: white; width: 100%; }
-        .btn-upload { background: #10b981; color: white; width: 100%; }
-        .btn-download-all { background: #f59e0b; color: white; width: 100%; }
+        .btn-export, .btn-upload, .btn-download-all { padding: 12px 16px; border: none; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 8px; width: 100%; }
+        .btn-export { background: #2563eb; color: white; }
+        .btn-upload { background: #10b981; color: white; }
+        .btn-download-all { background: #f59e0b; color: white; }
         button:active { transform: scale(0.97); opacity: 0.9; }
         .del-btn { background: #dc2626; color: white; border: none; border-radius: 50%; width: 28px; height: 28px; font-size: 16px; line-height: 28px; cursor: pointer; }
         .add-row { text-align: center; padding: 10px; }
@@ -44,10 +44,7 @@
         .settings-panel input { width:100%; margin-top:4px; }
         .btn-save { background: #2563eb; color: white; border: none; padding: 10px; border-radius: 8px; width: 100%; margin-top: 12px; font-size: 16px; cursor: pointer; }
         .sync-status { text-align: center; margin-top: 8px; font-size: 13px; }
-        /* 历史记录弹窗 */
-        .modal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); z-index: 99; justify-content: center; align-items: center; }
-        .modal-content { background: white; border-radius: 16px; padding: 20px; max-width: 90%; max-height: 80%; overflow-y: auto; width: 500px; }
-        .modal-close { float: right; font-size: 24px; cursor: pointer; }
+        .date-status-legend { text-align: center; font-size: 12px; color: #666; margin-top: 4px; }
     </style>
 </head>
 <body>
@@ -59,7 +56,7 @@
         <div class="meta">
             <div>
                 <label for="datePicker">日期：</label>
-                <input type="date" id="datePicker">
+                <input type="date" id="datePicker" style="transition: background 0.3s;">
             </div>
             <div>
                 <label for="shiftSelect">时段：</label>
@@ -71,7 +68,6 @@
         </div>
         <div class="btn-row">
             <button class="btn-edit" id="editToggleBtn">✏️ 修改物品清单</button>
-            <button class="btn-history" id="historyBtn">📂 查看历史记录</button>
         </div>
         <table id="itemTable"><thead></thead><tbody></tbody><tfoot></tfoot></table>
         <div class="signature-wrap">
@@ -84,7 +80,7 @@
         <button class="btn-upload" id="uploadRecordBtn">☁️ 上传记录到云端</button>
         <button class="btn-download-all" id="downloadAllBtn">📦 下载云端全部记录 (zip)</button>
 
-        <div class="notice">本地导出无需云端，上传/下载需要配置 GitHub 同步</div>
+        <div class="notice">日期颜色：🔴未上传 | 🟢已上传 | 🟩🟥 仅白天已上传</div>
         <div class="reset-link" id="resetLink">🔄 恢复默认物品清单</div>
         <div class="watermark">险胜彭于晏 创作</div>
 
@@ -101,15 +97,6 @@
             <input type="password" id="githubToken" placeholder="ghp_xxxx">
             <button class="btn-save" id="saveSettingsBtn">💾 保存设置</button>
             <div class="sync-status" id="syncStatus"></div>
-        </div>
-    </div>
-
-    <!-- 历史记录弹窗 -->
-    <div class="modal" id="historyModal">
-        <div class="modal-content">
-            <span class="modal-close" id="closeModal">&times;</span>
-            <h3>📂 清点历史记录</h3>
-            <div id="historyList">加载中...</div>
         </div>
     </div>
 
@@ -332,10 +319,16 @@
             downloadBlob(blob, `清点记录_${date}_${shift}.xlsx`);
         });
 
-        // ========== 上传 Excel 到 GitHub ==========
+        // ========== 上传 Excel 到 GitHub（按年/月二级目录） ==========
+        function buildRecordPath(date, shift) {
+            const [year, month, day] = date.split('-');
+            const monthStr = parseInt(month, 10) + '月份数据';
+            const filename = `清点记录_${date}_${shift}.xlsx`;
+            return `${year}年/${monthStr}/${filename}`;
+        }
+
         async function uploadExcelBlob(date, shift, blob) {
-            const path = `records/${date}/${shift}.xlsx`;
-            // 将 Blob 转为 base64
+            const path = buildRecordPath(date, shift);
             const base64 = await new Promise((resolve, reject) => {
                 const reader = new FileReader();
                 reader.onload = () => {
@@ -347,7 +340,6 @@
                 reader.readAsDataURL(blob);
             });
 
-            // 检查文件是否存在以获取 sha
             let sha = null;
             try {
                 const resp = await githubRequest(`${getApiBase()}/${path}`);
@@ -361,10 +353,7 @@
                 branch: 'main'
             };
             if (sha) body.sha = sha;
-            await githubRequest(`${getApiBase()}/${path}`, {
-                method: 'PUT',
-                body: JSON.stringify(body)
-            });
+            await githubRequest(`${getApiBase()}/${path}`, { method: 'PUT', body: JSON.stringify(body) });
         }
 
         document.getElementById('uploadRecordBtn').addEventListener('click', async () => {
@@ -378,80 +367,70 @@
             if (!date || !signature) { alert('请填写日期和签名'); return; }
             const blob = generateExcelBlob();
             try {
-                document.getElementById('uploadRecordBtn').disabled = true;
-                document.getElementById('uploadRecordBtn').textContent = '上传中...';
+                const btn = document.getElementById('uploadRecordBtn');
+                btn.disabled = true;
+                btn.textContent = '上传中...';
                 await uploadExcelBlob(date, shift, blob);
                 alert('✅ 记录已上传到云端');
+                // 更新日期背景颜色
+                updateDatePickerBackground();
             } catch(e) {
                 alert('上传失败: ' + e.message);
             } finally {
-                document.getElementById('uploadRecordBtn').disabled = false;
-                document.getElementById('uploadRecordBtn').textContent = '☁️ 上传记录到云端';
+                const btn = document.getElementById('uploadRecordBtn');
+                btn.disabled = false;
+                btn.textContent = '☁️ 上传记录到云端';
             }
         });
 
-        // ========== 下载全部云端 Excel 为 zip ==========
+        // ========== 下载全部云端 Excel 为 zip（保留） ==========
         async function downloadAllRecordsAsZip() {
             if (!ghConfig.token) {
                 alert('请先配置 GitHub 同步');
                 return;
             }
-            // 1. 获取 records 目录内容
             const recordsDirUrl = `${getApiBase()}/records`;
             let dirList;
             try {
                 const resp = await githubRequest(recordsDirUrl);
                 dirList = await resp.json();
             } catch(e) {
-                alert('无法访问 records 目录，可能没有上传过记录');
+                alert('无法访问 records 目录');
                 return;
             }
-            if (!Array.isArray(dirList)) {
-                alert('records 目录不存在');
-                return;
-            }
-
-            // 收集所有 .xlsx 文件信息
+            // 收集 .xlsx 文件（现在有子目录）
             const filesToDownload = [];
-            for (const entry of dirList) {
-                if (entry.type === 'dir') {
-                    const dateDir = entry.name;
-                    const dateDirUrl = `${getApiBase()}/records/${dateDir}`;
-                    try {
-                        const resp = await githubRequest(dateDirUrl);
-                        const dateFiles = await resp.json();
-                        if (Array.isArray(dateFiles)) {
-                            dateFiles.forEach(f => {
-                                if (f.name.endsWith('.xlsx') && f.download_url) {
-                                    filesToDownload.push({
-                                        path: `records/${dateDir}/${f.name}`,
-                                        url: f.download_url,
-                                        name: `${dateDir}/${f.name}`
-                                    });
-                                }
+            async function walkDir(basePath) {
+                const url = `${getApiBase()}/${basePath}`;
+                try {
+                    const resp = await githubRequest(url);
+                    const list = await resp.json();
+                    for (const item of list) {
+                        if (item.type === 'file' && item.name.endsWith('.xlsx')) {
+                            filesToDownload.push({
+                                path: `${basePath}/${item.name}`,
+                                url: item.download_url,
+                                name: item.name
                             });
+                        } else if (item.type === 'dir') {
+                            await walkDir(`${basePath}/${item.name}`);
                         }
-                    } catch(e) { console.warn('读取日期目录失败', e); }
-                } else if (entry.name.endsWith('.xlsx') && entry.download_url) {
-                    filesToDownload.push({
-                        path: `records/${entry.name}`,
-                        url: entry.download_url,
-                        name: entry.name
-                    });
-                }
+                    }
+                } catch(e) {}
             }
+            await walkDir('records');
 
             if (filesToDownload.length === 0) {
-                alert('云端没有记录文件');
+                alert('云端没有 Excel 记录');
                 return;
             }
 
-            // 2. 用 JSZip 打包
             const zip = new JSZip();
             const promises = filesToDownload.map(async (file) => {
                 const resp = await fetch(file.url);
                 const blob = await resp.blob();
-                zip.file(file.name, blob);
+                // 用完整路径保持结构
+                zip.file(file.path, blob);
             });
             try {
                 await Promise.all(promises);
@@ -471,6 +450,66 @@
             downloadAllRecordsAsZip();
         });
 
+        // ========== 日期背景颜色状态检查 ==========
+        async function checkRecordStatus(dateStr) {
+            if (!ghConfig.token || !ghConfig.owner || !ghConfig.repo) return null;
+            const shifts = ['白天', '晚上'];
+            const results = {};
+            for (const shift of shifts) {
+                const path = buildRecordPath(dateStr, shift);
+                try {
+                    await githubRequest(`${getApiBase()}/${path}`);
+                    results[shift] = true;
+                } catch(e) {
+                    results[shift] = false;
+                }
+            }
+            return results;
+        }
+
+        async function updateDatePickerBackground() {
+            const dateInput = document.getElementById('datePicker');
+            const dateStr = dateInput.value;
+            if (!dateStr) return;
+
+            const today = new Date().toISOString().slice(0,10);
+            // 未来日期：白色
+            if (dateStr > today) {
+                dateInput.style.background = '#ffffff';
+                return;
+            }
+
+            // 未配置 GitHub：白色
+            if (!ghConfig.token) {
+                dateInput.style.background = '#ffffff';
+                return;
+            }
+
+            try {
+                const status = await checkRecordStatus(dateStr);
+                if (!status) {
+                    dateInput.style.background = '#ffffff';
+                    return;
+                }
+                const dayExists = status['白天'] === true;
+                const nightExists = status['晚上'] === true;
+
+                if (dayExists && nightExists) {
+                    dateInput.style.background = '#22c55e'; // 全绿
+                } else if (dayExists && !nightExists) {
+                    dateInput.style.background = 'linear-gradient(to right, #22c55e 50%, #ef4444 50%)'; // 左绿右红
+                } else if (!dayExists && nightExists) {
+                    // 理论上只有晚上有、白天没有，也显示红绿渐变（左边红，右边绿）
+                    dateInput.style.background = 'linear-gradient(to right, #ef4444 50%, #22c55e 50%)';
+                } else {
+                    dateInput.style.background = '#ef4444'; // 全红
+                }
+            } catch(e) {
+                console.warn('状态检查失败', e);
+                dateInput.style.background = '#ffffff';
+            }
+        }
+
         // ========== 按钮事件 ==========
         document.getElementById('editToggleBtn').onclick = () => { editMode = !editMode; renderTable(); };
         document.getElementById('resetLink').onclick = () => {
@@ -481,55 +520,6 @@
                 renderTable();
             }
         };
-
-        // ========== 历史记录弹窗（基于 JSON，保留旧逻辑） ==========
-        const modal = document.getElementById('historyModal');
-        document.getElementById('historyBtn').onclick = async () => {
-            if (!ghConfig.token) { alert('请先配置 GitHub 同步'); return; }
-            modal.style.display = 'flex';
-            const listDiv = document.getElementById('historyList');
-            listDiv.innerHTML = '加载中...';
-            try {
-                const resp = await githubRequest(`${getApiBase()}/records`);
-                const dirs = await resp.json();
-                const dateDirs = dirs.filter(d => d.type === 'dir').map(d => d.name).sort().reverse();
-                if (dateDirs.length === 0) {
-                    listDiv.innerHTML = '暂无历史记录';
-                    return;
-                }
-                let html = '<ul style="list-style:none; padding:0;">';
-                for (const date of dateDirs) {
-                    html += `<li style="margin:10px 0; padding:10px; background:#f8f9fa; border-radius:8px;">
-                        <strong>${date}</strong>
-                        <div style="margin-top:5px;">
-                            <button class="view-record" data-date="${date}" data-shift="白天">白天</button>
-                            <button class="view-record" data-date="${date}" data-shift="晚上">晚上</button>
-                        </div>
-                    </li>`;
-                }
-                html += '</ul>';
-                listDiv.innerHTML = html;
-
-                document.querySelectorAll('.view-record').forEach(btn => {
-                    btn.onclick = async function() {
-                        const d = this.dataset.date;
-                        const s = this.dataset.shift;
-                        try {
-                            const resp = await githubRequest(`${getApiBase()}/records/${d}/${s}.json`);
-                            const data = await resp.json();
-                            const record = JSON.parse(atob(data.content.replace(/\n/g, '')));
-                            alert(`日期：${d} ${s}\n签名：${record.signature}\n物品：${record.items.map(i=>`${i.name}×${i.qty}`).join(', ')}`);
-                        } catch(e) {
-                            alert('该时段没有 JSON 记录（可能只有 Excel 文件）');
-                        }
-                    };
-                });
-            } catch(e) {
-                listDiv.innerHTML = '加载失败';
-            }
-        };
-        document.getElementById('closeModal').onclick = () => modal.style.display = 'none';
-        window.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
 
         // ========== GitHub 设置面板 ==========
         function loadGhConfig() {
@@ -558,6 +548,7 @@
                 if (resp.ok) {
                     setSyncStatus('✅ 连接成功！');
                     await syncItemsFromGitHub();
+                    updateDatePickerBackground();
                 } else {
                     setSyncStatus('❌ 连接失败，请检查信息');
                 }
@@ -570,14 +561,24 @@
             document.getElementById('syncStatus').textContent = msg;
         }
 
+        // ========== 日期监听 ==========
+        document.getElementById('datePicker').addEventListener('change', updateDatePickerBackground);
+
         // ========== 初始化 ==========
         function init() {
             loadGhConfig();
             items = loadLocalItems();
             renderTable();
-            document.getElementById('datePicker').value = new Date().toISOString().slice(0,10);
+            const dateInput = document.getElementById('datePicker');
+            dateInput.value = new Date().toISOString().slice(0,10);
             if (ghConfig.token) {
-                syncItemsFromGitHub().then(() => renderTable());
+                syncItemsFromGitHub().then(() => {
+                    renderTable();
+                    updateDatePickerBackground();
+                });
+            } else {
+                // 未配置 GitHub 也设置背景白色
+                dateInput.style.background = '#ffffff';
             }
         }
         init();
