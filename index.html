@@ -13,7 +13,7 @@
         h2 { text-align: center; margin-bottom: 16px; color: #2c3e50; font-size: 22px; }
         .meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
         .meta label { font-weight: 600; color: #555; margin-right: 4px; }
-        input[type="date"], select, input[type="text"], input[type="password"] { padding: 8px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; background: #fff; }
+        input[type="text"], input[type="password"], select { padding: 8px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; background: #fff; }
         table { width: 100%; border-collapse: collapse; margin-bottom: 12px; table-layout: fixed; }
         th, td { padding: 8px 6px; text-align: center; border-bottom: 1px solid #eee; font-size: 15px; }
         th { background: #f0f3f7; font-weight: 600; color: #333; }
@@ -44,7 +44,27 @@
         .settings-panel input { width:100%; margin-top:4px; }
         .btn-save { background: #2563eb; color: white; border: none; padding: 10px; border-radius: 8px; width: 100%; margin-top: 12px; font-size: 16px; cursor: pointer; }
         .sync-status { text-align: center; margin-top: 8px; font-size: 13px; }
-        .date-status-legend { text-align: center; font-size: 12px; color: #666; margin-top: 4px; }
+
+        /* 自定义日历样式 */
+        .date-picker-wrapper { position: relative; display: inline-block; }
+        #dateDisplay { padding: 8px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; background: #fff; min-width: 130px; text-align: center; cursor: pointer; user-select: none; }
+        .calendar-panel { position: absolute; top: 110%; left: 0; background: #fff; border: 1px solid #ddd; border-radius: 12px; box-shadow: 0 6px 16px rgba(0,0,0,0.15); z-index: 20; padding: 12px; display: none; width: 280px; }
+        .calendar-panel.show { display: block; }
+        .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .calendar-header button { background: none; border: 1px solid #ddd; border-radius: 6px; padding: 4px 10px; font-size: 16px; cursor: pointer; }
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+        .calendar-grid div { text-align: center; padding: 6px 0; border-radius: 6px; font-size: 14px; }
+        .calendar-day-name { font-weight: 600; color: #555; background: #f8f9fa; }
+        .calendar-date { cursor: pointer; background: #fff; color: #333; }
+        .calendar-date:hover { background: #e2e8f0; }
+        .calendar-date.today { font-weight: bold; border: 1px solid #2563eb; }
+        .calendar-date.future { color: #aaa; }
+        .calendar-date.empty { visibility: hidden; }
+        .legend-row { display: flex; justify-content: center; gap: 16px; margin-top: 8px; font-size: 12px; color: #666; }
+        .legend-row span { display: inline-flex; align-items: center; gap: 4px; }
+        .legend-red { width: 12px; height: 12px; background: #ef4444; border-radius: 3px; display: inline-block; }
+        .legend-green { width: 12px; height: 12px; background: #22c55e; border-radius: 3px; display: inline-block; }
+        .legend-half { width: 12px; height: 12px; background: linear-gradient(to right, #22c55e 50%, #ef4444 50%); border-radius: 3px; display: inline-block; }
     </style>
 </head>
 <body>
@@ -55,8 +75,23 @@
         </div>
         <div class="meta">
             <div>
-                <label for="datePicker">日期：</label>
-                <input type="date" id="datePicker" style="transition: background 0.3s;">
+                <label>日期：</label>
+                <div class="date-picker-wrapper" id="datePickerWrapper">
+                    <div id="dateDisplay">--</div>
+                    <div class="calendar-panel" id="calendarPanel">
+                        <div class="calendar-header">
+                            <button id="prevMonthBtn">‹</button>
+                            <span id="calendarMonthYear"></span>
+                            <button id="nextMonthBtn">›</button>
+                        </div>
+                        <div class="calendar-grid" id="calendarGrid"></div>
+                        <div class="legend-row">
+                            <span><span class="legend-red"></span> 未上传</span>
+                            <span><span class="legend-half"></span> 部分上传</span>
+                            <span><span class="legend-green"></span> 已上传</span>
+                        </div>
+                    </div>
+                </div>
             </div>
             <div>
                 <label for="shiftSelect">时段：</label>
@@ -74,17 +109,12 @@
             <label>✍️ 检查人签名：</label>
             <input type="text" id="signatureInput" placeholder="请在此签名">
         </div>
-
-        <!-- 三个独立按钮 -->
         <button class="btn-export" id="exportExcelBtn">📥 导出 Excel (本地下载)</button>
         <button class="btn-upload" id="uploadRecordBtn">☁️ 上传记录到云端</button>
         <button class="btn-download-all" id="downloadAllBtn">📦 下载云端全部记录 (zip)</button>
-
-        <div class="notice">日期颜色：🔴未上传 | 🟢已上传 | 🟩🟥 仅白天已上传</div>
+        <div class="notice">🔴 红色=未上传 🟢 绿色=已上传 半红半绿=仅白天上传</div>
         <div class="reset-link" id="resetLink">🔄 恢复默认物品清单</div>
         <div class="watermark">险胜彭于晏 创作</div>
-
-        <!-- GitHub 设置区域 -->
         <div style="text-align:center; margin-top:12px;">
             <span class="reset-link" id="settingsToggle">⚙️ GitHub 同步设置</span>
         </div>
@@ -134,7 +164,7 @@
             localStorage.setItem(STORAGE_KEY_ITEMS, JSON.stringify(items));
         }
 
-        // ========== GitHub API 封装 ==========
+        // ========== GitHub API ==========
         function getApiBase() {
             return `https://api.github.com/repos/${ghConfig.owner}/${ghConfig.repo}/contents`;
         }
@@ -153,7 +183,7 @@
             return resp;
         }
 
-        // ========== 物品清单同步（JSON） ==========
+        // ========== 物品清单同步 ==========
         async function syncItemsFromGitHub() {
             if (!ghConfig.token || !ghConfig.owner || !ghConfig.repo) return;
             try {
@@ -275,9 +305,9 @@
             document.getElementById('editToggleBtn').classList.toggle('active', editMode);
         }
 
-        // ========== 生成本地表单 Excel Blob ==========
+        // ========== Excel 生成 ==========
         function generateExcelBlob() {
-            const date = document.getElementById('datePicker').value;
+            const date = document.getElementById('dateDisplay').textContent;
             const shift = document.getElementById('shiftSelect').value;
             const signature = document.getElementById('signatureInput').value.trim();
             const rows = [['日期', '时段', '物品名称', '数量', '签名']];
@@ -305,37 +335,19 @@
             URL.revokeObjectURL(url);
         }
 
-        // ========== 本地导出 Excel ==========
-        document.getElementById('exportExcelBtn').addEventListener('click', () => {
-            if (isWechatOrQQ()) {
-                alert('请在系统浏览器中打开此页面再下载');
-                return;
-            }
-            const date = document.getElementById('datePicker').value;
-            const shift = document.getElementById('shiftSelect').value;
-            const signature = document.getElementById('signatureInput').value.trim();
-            if (!date || !signature) { alert('请填写日期和签名'); return; }
-            const blob = generateExcelBlob();
-            downloadBlob(blob, `清点记录_${date}_${shift}.xlsx`);
-        });
-
-        // ========== 上传 Excel 到 GitHub（按年/月二级目录） ==========
+        // ========== 路径生成（records/年/月份数据/文件） ==========
         function buildRecordPath(date, shift) {
             const [year, month, day] = date.split('-');
             const monthStr = parseInt(month, 10) + '月份数据';
             const filename = `清点记录_${date}_${shift}.xlsx`;
-            return `${year}年/${monthStr}/${filename}`;
+            return `records/${year}年/${monthStr}/${filename}`;
         }
 
         async function uploadExcelBlob(date, shift, blob) {
             const path = buildRecordPath(date, shift);
             const base64 = await new Promise((resolve, reject) => {
                 const reader = new FileReader();
-                reader.onload = () => {
-                    const dataUrl = reader.result;
-                    const base64Content = dataUrl.split(',')[1];
-                    resolve(base64Content);
-                };
+                reader.onload = () => resolve(reader.result.split(',')[1]);
                 reader.onerror = reject;
                 reader.readAsDataURL(blob);
             });
@@ -343,8 +355,7 @@
             let sha = null;
             try {
                 const resp = await githubRequest(`${getApiBase()}/${path}`);
-                const data = await resp.json();
-                sha = data.sha;
+                sha = (await resp.json()).sha;
             } catch(e) {}
 
             const body = {
@@ -356,54 +367,44 @@
             await githubRequest(`${getApiBase()}/${path}`, { method: 'PUT', body: JSON.stringify(body) });
         }
 
+        // ========== 按钮事件 ==========
+        document.getElementById('exportExcelBtn').addEventListener('click', () => {
+            if (isWechatOrQQ()) { alert('请在系统浏览器中打开'); return; }
+            const date = document.getElementById('dateDisplay').textContent;
+            const shift = document.getElementById('shiftSelect').value;
+            const signature = document.getElementById('signatureInput').value.trim();
+            if (!date || !signature) { alert('请填写日期和签名'); return; }
+            downloadBlob(generateExcelBlob(), `清点记录_${date}_${shift}.xlsx`);
+        });
+
         document.getElementById('uploadRecordBtn').addEventListener('click', async () => {
-            if (!ghConfig.token) {
-                alert('请先配置 GitHub 同步设置');
-                return;
-            }
-            const date = document.getElementById('datePicker').value;
+            if (!ghConfig.token) { alert('请先配置 GitHub 同步'); return; }
+            const date = document.getElementById('dateDisplay').textContent;
             const shift = document.getElementById('shiftSelect').value;
             const signature = document.getElementById('signatureInput').value.trim();
             if (!date || !signature) { alert('请填写日期和签名'); return; }
             const blob = generateExcelBlob();
+            const btn = document.getElementById('uploadRecordBtn');
+            btn.disabled = true; btn.textContent = '上传中...';
             try {
-                const btn = document.getElementById('uploadRecordBtn');
-                btn.disabled = true;
-                btn.textContent = '上传中...';
                 await uploadExcelBlob(date, shift, blob);
-                alert('✅ 记录已上传到云端');
-                // 更新日期背景颜色
-                updateDatePickerBackground();
+                alert('✅ 记录已上传');
+                await refreshCalendarStatus();
+                updateDateDisplayBackground();
             } catch(e) {
                 alert('上传失败: ' + e.message);
             } finally {
-                const btn = document.getElementById('uploadRecordBtn');
-                btn.disabled = false;
-                btn.textContent = '☁️ 上传记录到云端';
+                btn.disabled = false; btn.textContent = '☁️ 上传记录到云端';
             }
         });
 
-        // ========== 下载全部云端 Excel 为 zip（保留） ==========
+        // ========== 下载全部 zip ==========
         async function downloadAllRecordsAsZip() {
-            if (!ghConfig.token) {
-                alert('请先配置 GitHub 同步');
-                return;
-            }
-            const recordsDirUrl = `${getApiBase()}/records`;
-            let dirList;
-            try {
-                const resp = await githubRequest(recordsDirUrl);
-                dirList = await resp.json();
-            } catch(e) {
-                alert('无法访问 records 目录');
-                return;
-            }
-            // 收集 .xlsx 文件（现在有子目录）
+            if (!ghConfig.token) { alert('请先配置 GitHub 同步'); return; }
             const filesToDownload = [];
             async function walkDir(basePath) {
-                const url = `${getApiBase()}/${basePath}`;
                 try {
-                    const resp = await githubRequest(url);
+                    const resp = await githubRequest(`${getApiBase()}/${basePath}`);
                     const list = await resp.json();
                     for (const item of list) {
                         if (item.type === 'file' && item.name.endsWith('.xlsx')) {
@@ -419,98 +420,23 @@
                 } catch(e) {}
             }
             await walkDir('records');
-
-            if (filesToDownload.length === 0) {
-                alert('云端没有 Excel 记录');
-                return;
-            }
+            if (filesToDownload.length === 0) { alert('云端没有 Excel 记录'); return; }
 
             const zip = new JSZip();
-            const promises = filesToDownload.map(async (file) => {
+            await Promise.all(filesToDownload.map(async file => {
                 const resp = await fetch(file.url);
-                const blob = await resp.blob();
-                // 用完整路径保持结构
-                zip.file(file.path, blob);
-            });
-            try {
-                await Promise.all(promises);
-                const content = await zip.generateAsync({ type: 'blob' });
-                downloadBlob(content, `清点记录全部_${new Date().toISOString().slice(0,10)}.zip`);
-                alert('✅ 历史记录压缩包已下载');
-            } catch(e) {
-                alert('打包失败: ' + e.message);
-            }
+                zip.file(file.path, await resp.blob());
+            }));
+            const content = await zip.generateAsync({ type: 'blob' });
+            downloadBlob(content, '所有清点数据.zip');
+            alert('✅ 所有清点数据已下载');
         }
 
         document.getElementById('downloadAllBtn').addEventListener('click', () => {
-            if (isWechatOrQQ()) {
-                alert('请用系统浏览器打开后再下载');
-                return;
-            }
+            if (isWechatOrQQ()) { alert('请用系统浏览器打开'); return; }
             downloadAllRecordsAsZip();
         });
 
-        // ========== 日期背景颜色状态检查 ==========
-        async function checkRecordStatus(dateStr) {
-            if (!ghConfig.token || !ghConfig.owner || !ghConfig.repo) return null;
-            const shifts = ['白天', '晚上'];
-            const results = {};
-            for (const shift of shifts) {
-                const path = buildRecordPath(dateStr, shift);
-                try {
-                    await githubRequest(`${getApiBase()}/${path}`);
-                    results[shift] = true;
-                } catch(e) {
-                    results[shift] = false;
-                }
-            }
-            return results;
-        }
-
-        async function updateDatePickerBackground() {
-            const dateInput = document.getElementById('datePicker');
-            const dateStr = dateInput.value;
-            if (!dateStr) return;
-
-            const today = new Date().toISOString().slice(0,10);
-            // 未来日期：白色
-            if (dateStr > today) {
-                dateInput.style.background = '#ffffff';
-                return;
-            }
-
-            // 未配置 GitHub：白色
-            if (!ghConfig.token) {
-                dateInput.style.background = '#ffffff';
-                return;
-            }
-
-            try {
-                const status = await checkRecordStatus(dateStr);
-                if (!status) {
-                    dateInput.style.background = '#ffffff';
-                    return;
-                }
-                const dayExists = status['白天'] === true;
-                const nightExists = status['晚上'] === true;
-
-                if (dayExists && nightExists) {
-                    dateInput.style.background = '#22c55e'; // 全绿
-                } else if (dayExists && !nightExists) {
-                    dateInput.style.background = 'linear-gradient(to right, #22c55e 50%, #ef4444 50%)'; // 左绿右红
-                } else if (!dayExists && nightExists) {
-                    // 理论上只有晚上有、白天没有，也显示红绿渐变（左边红，右边绿）
-                    dateInput.style.background = 'linear-gradient(to right, #ef4444 50%, #22c55e 50%)';
-                } else {
-                    dateInput.style.background = '#ef4444'; // 全红
-                }
-            } catch(e) {
-                console.warn('状态检查失败', e);
-                dateInput.style.background = '#ffffff';
-            }
-        }
-
-        // ========== 按钮事件 ==========
         document.getElementById('editToggleBtn').onclick = () => { editMode = !editMode; renderTable(); };
         document.getElementById('resetLink').onclick = () => {
             if (confirm('恢复默认物品清单？')) {
@@ -548,7 +474,8 @@
                 if (resp.ok) {
                     setSyncStatus('✅ 连接成功！');
                     await syncItemsFromGitHub();
-                    updateDatePickerBackground();
+                    await refreshCalendarStatus();
+                    updateDateDisplayBackground();
                 } else {
                     setSyncStatus('❌ 连接失败，请检查信息');
                 }
@@ -561,24 +488,179 @@
             document.getElementById('syncStatus').textContent = msg;
         }
 
-        // ========== 日期监听 ==========
-        document.getElementById('datePicker').addEventListener('change', updateDatePickerBackground);
+        // ========== 自定义日历与状态显示 ==========
+        let currentDisplayDate = new Date().toISOString().slice(0,10); // 当前选中日期
+        let calendarYear, calendarMonth; // 日历面板显示的年月
+
+        const dateDisplay = document.getElementById('dateDisplay');
+        const calendarPanel = document.getElementById('calendarPanel');
+        const calendarGrid = document.getElementById('calendarGrid');
+        const calendarMonthYear = document.getElementById('calendarMonthYear');
+        const prevMonthBtn = document.getElementById('prevMonthBtn');
+        const nextMonthBtn = document.getElementById('nextMonthBtn');
+
+        // 检查某日期状态（根据云端文件）
+        async function checkRecordStatus(dateStr) {
+            if (!ghConfig.token) return null;
+            const result = {};
+            for (const shift of ['白天', '晚上']) {
+                const path = buildRecordPath(dateStr, shift);
+                try {
+                    await githubRequest(`${getApiBase()}/${path}`);
+                    result[shift] = true;
+                } catch(e) {
+                    result[shift] = false;
+                }
+            }
+            return result;
+        }
+
+        // 获取日期单元格背景色
+        function getDateBackground(dateStr, status) {
+            const today = new Date().toISOString().slice(0,10);
+            if (dateStr > today) return '#ffffff'; // 未来白色
+            if (!status) return '#ffffff'; // 无状态信息
+            const day = status['白天'] === true;
+            const night = status['晚上'] === true;
+            if (day && night) return '#22c55e';
+            if (day && !night) return 'linear-gradient(to right, #22c55e 50%, #ef4444 50%)';
+            if (!day && night) return 'linear-gradient(to right, #ef4444 50%, #22c55e 50%)';
+            return '#ef4444';
+        }
+
+        // 更新日期显示背景（主界面顶部）
+        async function updateDateDisplayBackground() {
+            const dateStr = dateDisplay.textContent;
+            const today = new Date().toISOString().slice(0,10);
+            if (dateStr > today || !ghConfig.token) {
+                dateDisplay.style.background = '#ffffff';
+                return;
+            }
+            const status = await checkRecordStatus(dateStr);
+            if (!status) {
+                dateDisplay.style.background = '#ffffff';
+                return;
+            }
+            const day = status['白天'] === true;
+            const night = status['晚上'] === true;
+            if (day && night) dateDisplay.style.background = '#22c55e';
+            else if (day && !night) dateDisplay.style.background = 'linear-gradient(to right, #22c55e 50%, #ef4444 50%)';
+            else if (!day && night) dateDisplay.style.background = 'linear-gradient(to right, #ef4444 50%, #22c55e 50%)';
+            else dateDisplay.style.background = '#ef4444';
+        }
+
+        // 渲染日历面板
+        async function renderCalendar(year, month) {
+            calendarYear = year;
+            calendarMonth = month;
+            calendarMonthYear.textContent = `${year}年${month+1}月`;
+
+            const firstDay = new Date(year, month, 1).getDay(); // 0=周日
+            const daysInMonth = new Date(year, month+1, 0).getDate();
+            const todayStr = new Date().toISOString().slice(0,10);
+
+            // 批量获取本月所有日期的状态（优化：并行请求，但需控制并发，这里简单串行）
+            const dateStatusMap = {};
+            if (ghConfig.token) {
+                for (let d = 1; d <= daysInMonth; d++) {
+                    const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+                    if (dateStr <= todayStr) {
+                        dateStatusMap[dateStr] = await checkRecordStatus(dateStr);
+                    }
+                }
+            }
+
+            // 绘制表头
+            const dayNames = ['日','一','二','三','四','五','六'];
+            let html = dayNames.map(d => `<div class="calendar-day-name">${d}</div>`).join('');
+
+            // 前置空白格
+            for (let i = 0; i < firstDay; i++) {
+                html += '<div class="calendar-date empty"></div>';
+            }
+
+            for (let d = 1; d <= daysInMonth; d++) {
+                const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+                const isToday = dateStr === todayStr;
+                const isFuture = dateStr > todayStr;
+                const status = dateStatusMap[dateStr] || null;
+                let bg = isFuture ? '#ffffff' : (status ? getDateBackground(dateStr, status) : '#ffffff');
+                // 对于渐变背景，需要特殊处理内联样式
+                let style = `background: ${bg};`;
+                if (isToday) style += ' font-weight:bold; border:2px solid #2563eb;';
+                let cls = 'calendar-date';
+                if (isFuture) cls += ' future';
+                if (dateStr === currentDisplayDate) cls += ' today'; // 高亮当前选中
+                html += `<div class="${cls}" data-date="${dateStr}" style="${style}">${d}</div>`;
+            }
+
+            calendarGrid.innerHTML = html;
+
+            // 绑定日期点击事件
+            calendarGrid.querySelectorAll('.calendar-date').forEach(el => {
+                el.addEventListener('click', async function() {
+                    const selectedDate = this.dataset.date;
+                    if (!selectedDate) return;
+                    currentDisplayDate = selectedDate;
+                    dateDisplay.textContent = selectedDate;
+                    calendarPanel.classList.remove('show');
+                    await updateDateDisplayBackground();
+                });
+            });
+        }
+
+        // 切换月份
+        function changeMonth(delta) {
+            let newMonth = calendarMonth + delta;
+            let newYear = calendarYear;
+            if (newMonth < 0) { newYear--; newMonth = 11; }
+            if (newMonth > 11) { newYear++; newMonth = 0; }
+            renderCalendar(newYear, newMonth);
+        }
+
+        prevMonthBtn.addEventListener('click', () => changeMonth(-1));
+        nextMonthBtn.addEventListener('click', () => changeMonth(1));
+
+        // 点击日期显示区域打开/关闭日历
+        dateDisplay.addEventListener('click', () => {
+            const today = new Date();
+            const selectedDate = new Date(currentDisplayDate);
+            // 打开时定位到当前选中日期的月份
+            calendarYear = selectedDate.getFullYear();
+            calendarMonth = selectedDate.getMonth();
+            renderCalendar(calendarYear, calendarMonth);
+            calendarPanel.classList.toggle('show');
+        });
+
+        // 点击页面其他地方关闭日历
+        document.addEventListener('click', function(e) {
+            if (!document.getElementById('datePickerWrapper').contains(e.target)) {
+                calendarPanel.classList.remove('show');
+            }
+        });
+
+        // 刷新日历状态（上传后调用）
+        async function refreshCalendarStatus() {
+            if (calendarPanel.classList.contains('show')) {
+                await renderCalendar(calendarYear, calendarMonth);
+            }
+            await updateDateDisplayBackground();
+        }
 
         // ========== 初始化 ==========
         function init() {
             loadGhConfig();
             items = loadLocalItems();
             renderTable();
-            const dateInput = document.getElementById('datePicker');
-            dateInput.value = new Date().toISOString().slice(0,10);
+            currentDisplayDate = new Date().toISOString().slice(0,10);
+            dateDisplay.textContent = currentDisplayDate;
             if (ghConfig.token) {
                 syncItemsFromGitHub().then(() => {
                     renderTable();
-                    updateDatePickerBackground();
+                    updateDateDisplayBackground();
                 });
             } else {
-                // 未配置 GitHub 也设置背景白色
-                dateInput.style.background = '#ffffff';
+                dateDisplay.style.background = '#ffffff';
             }
         }
         init();
