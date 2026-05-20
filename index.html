@@ -112,9 +112,9 @@
         <button class="btn-export" id="exportExcelBtn">📥 导出 Excel (本地下载)</button>
         <button class="btn-upload" id="uploadRecordBtn">☁️ 上传记录到云端</button>
         <button class="btn-download-all" id="downloadAllBtn">📦 下载云端全部记录 (zip)</button>
-        <div class="notice">🔴 红色=未上传 🟢 绿色=已上传 半红半绿=仅白天上传</div>
+        <div class="notice">🔴 红色=未上传 🟢 绿色=已上传 半红半绿=仅部分上传</div>
         <div class="reset-link" id="resetLink">🔄 恢复默认物品清单</div>
-        <div class="watermark">险胜彭于晏 创作</div>
+        <div class="watermark">创作者：险胜彭于晏</div>
         <div style="text-align:center; margin-top:12px;">
             <span class="reset-link" id="settingsToggle">⚙️ GitHub 同步设置</span>
         </div>
@@ -183,7 +183,7 @@
             return resp;
         }
 
-        // ========== 物品清单同步 ==========
+        // ========== 物品清单同步（修复404处理） ==========
         async function syncItemsFromGitHub() {
             if (!ghConfig.token || !ghConfig.owner || !ghConfig.repo) return;
             try {
@@ -197,7 +197,13 @@
                     setSyncStatus('✅ 物品清单已从云端加载');
                 }
             } catch(e) {
-                setSyncStatus('⚠️ 云端加载失败，使用本地清单');
+                // 如果是404，说明云端尚无清单文件，属于正常情况，不提示错误
+                if (e.message.includes('404')) {
+                    // 云端无文件，保持本地清单，不覆盖状态
+                    console.log('云端暂无 items.json，使用本地清单');
+                } else {
+                    setSyncStatus('⚠️ 云端加载失败，使用本地清单');
+                }
             }
         }
         async function uploadItemsToGitHub() {
@@ -209,7 +215,9 @@
                     const resp = await githubRequest(`${getApiBase()}/${path}`);
                     const data = await resp.json();
                     sha = data.sha;
-                } catch(e) {}
+                } catch(e) {
+                    if (!e.message.includes('404')) throw e;
+                }
                 const body = {
                     message: 'Update items.json',
                     content: btoa(unescape(encodeURIComponent(JSON.stringify(items, null, 2)))),
@@ -356,7 +364,9 @@
             try {
                 const resp = await githubRequest(`${getApiBase()}/${path}`);
                 sha = (await resp.json()).sha;
-            } catch(e) {}
+            } catch(e) {
+                if (!e.message.includes('404')) throw e;
+            }
 
             const body = {
                 message: `Upload ${shift} record for ${date}`,
@@ -388,7 +398,6 @@
             btn.disabled = true; btn.textContent = '上传中...';
             try {
                 await uploadExcelBlob(date, shift, blob);
-                // 更新缓存：将当前日期对应时段标记为已上传
                 const cached = statusCache.get(date) || { '白天': false, '晚上': false };
                 cached[shift] = true;
                 statusCache.set(date, cached);
@@ -469,7 +478,6 @@
         };
         document.getElementById('saveSettingsBtn').onclick = async () => {
             saveGhConfig();
-            // 配置变更时清空状态缓存
             statusCache.clear();
             setSyncStatus('正在测试连接...');
             try {
@@ -478,7 +486,7 @@
                 });
                 if (resp.ok) {
                     setSyncStatus('✅ 连接成功！');
-                    await syncItemsFromGitHub();
+                    await syncItemsFromGitHub(); // 现在不会覆盖状态，404只是静默
                     await refreshCalendarStatus();
                 } else {
                     setSyncStatus('❌ 连接失败，请检查信息');
@@ -493,9 +501,8 @@
         }
 
         // ========== 缓存与日历核心 ==========
-        const statusCache = new Map(); // dateStr -> {白天:bool, 晚上:bool}
+        const statusCache = new Map();
 
-        // 检查某日期状态（并行请求白天/晚上）
         async function checkRecordStatus(dateStr) {
             if (!ghConfig.token) return null;
             if (statusCache.has(dateStr)) return statusCache.get(dateStr);
@@ -527,7 +534,6 @@
             return '#ef4444';
         }
 
-        // 更新顶部日期显示背景
         async function updateDateDisplayBackground() {
             const dateStr = document.getElementById('dateDisplay').textContent;
             const today = new Date().toISOString().slice(0,10);
@@ -549,7 +555,6 @@
             else display.style.background = '#ef4444';
         }
 
-        // ========== 日历渲染（优化后） ==========
         let currentDisplayDate = new Date().toISOString().slice(0,10);
         let calendarYear, calendarMonth;
 
@@ -560,7 +565,6 @@
         const prevMonthBtn = document.getElementById('prevMonthBtn');
         const nextMonthBtn = document.getElementById('nextMonthBtn');
 
-        // 渲染日历（立即显示缓存结果，然后异步更新未缓存日期）
         async function renderCalendar(year, month) {
             calendarYear = year;
             calendarMonth = month;
@@ -570,7 +574,6 @@
             const daysInMonth = new Date(year, month+1, 0).getDate();
             const todayStr = new Date().toISOString().slice(0,10);
 
-            // 需要后台请求的日期列表
             const datesNeeded = [];
             for (let d = 1; d <= daysInMonth; d++) {
                 const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
@@ -579,7 +582,6 @@
                 }
             }
 
-            // 先根据缓存构建 HTML
             function getCachedBackground(dateStr) {
                 const cached = statusCache.get(dateStr);
                 if (dateStr > todayStr) return '#ffffff';
@@ -606,7 +608,6 @@
             }
             calendarGrid.innerHTML = html;
 
-            // 绑定点击
             calendarGrid.querySelectorAll('.calendar-date').forEach(el => {
                 el.addEventListener('click', async function() {
                     const selectedDate = this.dataset.date;
@@ -618,7 +619,6 @@
                 });
             });
 
-            // 后台分批请求未缓存日期并实时更新背景
             if (datesNeeded.length > 0) {
                 const concurrency = 5;
                 for (let i = 0; i < datesNeeded.length; i += concurrency) {
@@ -661,11 +661,8 @@
             }
         });
 
-        // 刷新日历状态（上传后调用）
         async function refreshCalendarStatus() {
-            // 更新当前显示区域的背景
             await updateDateDisplayBackground();
-            // 如果日历面板打开着，重新渲染（会利用缓存快速显示）
             if (calendarPanel.classList.contains('show')) {
                 await renderCalendar(calendarYear, calendarMonth);
             }
